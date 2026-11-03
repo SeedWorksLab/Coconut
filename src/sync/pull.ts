@@ -246,15 +246,16 @@ async function applyRemoteTombstones(
   return applied;
 }
 
-async function pullSettings(
+export async function pullSettings(
   db: SQLiteDatabase,
   client: SupabaseClient,
-  since: string
+  since: string,
+  keys: readonly string[] = SYNC_SETTINGS_KEYS
 ): Promise<number> {
   const { data, error } = await client
     .from('settings')
     .select('key, value, updated_at')
-    .in('key', SYNC_SETTINGS_KEYS)
+    .in('key', keys)
     .gt('updated_at', since);
   if (error) {
     throw new Error(`Pull of settings failed: ${error.message}`);

@@ -208,8 +208,8 @@ describe('forecastMonth', () => {
     instance({ expectedAmountCents: 10000, actualAmountCents: null }),
   ];
   const budgets: MonthBudget[] = [
-    { id: 1, monthKey: '2026-09', budgetId: 1, plannedAmountCents: 15000 },
-    { id: 2, monthKey: '2026-09', budgetId: 2, plannedAmountCents: 5000 },
+    { id: 1, monthKey: '2026-09', budgetId: 1, plannedAmountCents: 15000, active: true },
+    { id: 2, monthKey: '2026-09', budgetId: 2, plannedAmountCents: 5000, active: true },
   ];
   const transactions: Transaction[] = [transaction(3000), transaction(2000)];
 
@@ -362,7 +362,7 @@ describe('actual spending covers everything spent', () => {
       instance({ id: 1, fixedExpenseId: 1, expectedAmountCents: 50000, actualAmountCents: 52000 }),
       instance({ id: 2, fixedExpenseId: 2, expectedAmountCents: 10000, actualAmountCents: null }),
     ],
-    budgets: [{ id: 1, monthKey: '2026-09', budgetId: 1, plannedAmountCents: 15000 }],
+    budgets: [{ id: 1, monthKey: '2026-09', budgetId: 1, plannedAmountCents: 15000, active: true }],
     transactions: [
       transaction(3000, 1),
       transaction(2500, null),

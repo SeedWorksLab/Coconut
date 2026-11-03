@@ -2,7 +2,12 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { MonthKey, MonthPlanEvent, MonthPlanEventKind } from '../models';
 import { getDatabase } from './database';
-import { getMonthBudgets, setMonthBudgetPlanned } from './budgets';
+import {
+  getMonthBudgets,
+  insertMonthBudget,
+  setMonthBudgetActive,
+  setMonthBudgetPlanned,
+} from './budgets';
 import { diffMonthPlan, fundedBudgetIdForDraw } from '../services/month-planning-service';
 
 interface MonthPlanEventRow {
@@ -173,6 +178,12 @@ export interface MonthPlanUpdate {
   monthKey: MonthKey;
   /** The full plan the user has just committed to, by budget. */
   plans: Record<number, number>;
+  /**
+   * Whether each budget is part of the month's plan. Absent budgets keep their
+   * current state. A re-plan can only activate an inactive budget: an active
+   * budget cannot be turned off again in the same month.
+   */
+  active?: Record<number, boolean>;
   /** The planned reserve draw the user has just committed to. */
   drawCents: number;
 }
@@ -193,18 +204,66 @@ export async function recordMonthPlan(
 ): Promise<void> {
   const database = db ?? (await getDatabase());
   await database.withTransactionAsync(async () => {
-    const currentRows = await getMonthBudgets(update.monthKey, database);
+    // A budget added after the month was started has no row yet. It is inserted
+    // with the state the plan commits it to, so the plan and its rows can never
+    // disagree.
+    let currentRows = await getMonthBudgets(update.monthKey, database);
+    for (const [budgetIdKey, plannedAmountCents] of Object.entries(update.plans)) {
+      const budgetId = Number(budgetIdKey);
+      if (currentRows.some((row) => row.budgetId === budgetId)) {
+        continue;
+      }
+      await insertMonthBudget(
+        {
+          monthKey: update.monthKey,
+          budgetId,
+          plannedAmountCents,
+          active: update.active?.[budgetId] ?? true,
+        },
+        database
+      );
+    }
+    currentRows = await getMonthBudgets(update.monthKey, database);
+
     const previousDrawCents = await getPlannedDrawCents(update.monthKey, database);
+    const activeByBudget = update.active ?? {};
+    const nextRows = currentRows.map((row) => {
+      const requestedActive = activeByBudget[row.budgetId];
+      // Activation is one-way for a month: once a budget is active it stays
+      // active. Only a budget that is still inactive can be activated here.
+      const active = row.active || requestedActive === true;
+      return {
+        ...row,
+        active,
+        plannedAmountCents:
+          !row.active && active
+            ? update.plans[row.budgetId] ?? row.plannedAmountCents
+            : row.plannedAmountCents,
+      };
+    });
+
+    for (const row of nextRows) {
+      const current = currentRows.find((entry) => entry.budgetId === row.budgetId);
+      if (!current || current.active === row.active) {
+        continue;
+      }
+      await setMonthBudgetActive(row.id, row.active, database);
+      if (current.plannedAmountCents !== row.plannedAmountCents) {
+        await setMonthBudgetPlanned(row.id, row.plannedAmountCents, database);
+      }
+    }
+
+    const activeRows = nextRows.filter((row) => row.active);
     await openMonthPlanRecord(
       update.monthKey,
-      currentRows.map((row) => ({
+      activeRows.map((row) => ({
         budgetId: row.budgetId,
         plannedAmountCents: row.plannedAmountCents,
       })),
       database
     );
     const diff = diffMonthPlan(
-      currentRows.map((row) => ({
+      activeRows.map((row) => ({
         budgetId: row.budgetId,
         plannedAmountCents: row.plannedAmountCents,
       })),
@@ -214,7 +273,7 @@ export async function recordMonthPlan(
     );
 
     for (const change of diff.budgetChanges) {
-      const row = currentRows.find((entry) => entry.budgetId === change.budgetId);
+      const row = nextRows.find((entry) => entry.budgetId === change.budgetId);
       if (!row) {
         continue;
       }

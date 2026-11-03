@@ -163,6 +163,23 @@ export default function MonthlyReportScreen() {
             </Text>
           ) : (
             report.budgets.map((budget) => {
+              if (!budget.active) {
+                return (
+                  <View key={budget.name} style={styles.budgetRow}>
+                    <View style={styles.row}>
+                      <Text variant="bodyMedium">{budget.name}</Text>
+                      <Text
+                        variant="bodySmall"
+                        style={{ color: theme.colors.onSurfaceVariant }}
+                      >
+                        {budget.spentCents > 0
+                          ? `Inactive · ${formatCents(budget.spentCents, symbol)} spent`
+                          : 'Inactive this month'}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }
               const over = budget.spentCents > budget.plannedCents;
               return (
                 <View key={budget.name} style={styles.budgetRow}>

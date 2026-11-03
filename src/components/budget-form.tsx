@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Button, List, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Text, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Budget } from '../models';
 import { formatCents } from '../utils/currency';
@@ -28,7 +28,6 @@ export function BudgetForm({
   const [defaultAmountCents, setDefaultAmountCents] = useState<number | null>(
     initialData?.defaultAmountCents ?? null
   );
-  const [active, setActive] = useState(initialData?.active ?? true);
   const [color, setColor] = useState<string | null>(initialData?.color ?? null);
   const [amountError, setAmountError] = useState<string | null>(null);
   const theme = useAppTheme();
@@ -51,7 +50,7 @@ export function BudgetForm({
     onSubmit({
       name: name.trim(),
       defaultAmountCents,
-      active,
+      active: initialData?.active ?? true,
       sortOrder: initialData?.sortOrder ?? 0,
       color,
     });
@@ -126,11 +125,6 @@ export function BudgetForm({
       <Text variant="bodySmall" style={styles.colorHint}>
         Transactions tagged with this budget use the color for their icon.
       </Text>
-      <List.Item
-        title="Active"
-        description="Included in the current month's planning"
-        right={() => <Switch value={active} onValueChange={setActive} />}
-      />
       <Button
         mode="contained"
         onPress={handleSubmit}

@@ -667,4 +667,16 @@ ${syncTriggersForTablesSql(['month_budget_plan_events'])}
 ALTER TABLE months ADD COLUMN closing_verdict TEXT;
 `,
   },
+  {
+    id: 17,
+    description: 'Per-month budget activation',
+    // Whether a budget is part of a month's plan is a property of that month,
+    // not of the budget definition. It can only be turned off while the month
+    // is being started; afterwards an inactive budget may be activated, but an
+    // active one stays active for the rest of the month. Existing rows were all
+    // part of their month's plan and default to active.
+    sql: `
+ALTER TABLE month_budgets ADD COLUMN active INTEGER NOT NULL DEFAULT 1;
+`,
+  },
 ];

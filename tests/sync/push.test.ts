@@ -2,6 +2,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { MIGRATIONS } from '../../src/database/migrations';
+import { updateSettings } from '../../src/database/settings';
 import { pushChanges } from '../../src/sync/push';
 
 jest.mock('../../src/sync/supabase', () => ({
@@ -87,6 +88,7 @@ const REMOTE_COLUMNS: Record<string, string[]> = {
     'month_key',
     'budget_uuid',
     'planned_amount_cents',
+    'active',
     'updated_at',
   ],
   income: [
@@ -450,6 +452,20 @@ describe('pushChanges full-sync seeding and healing', () => {
     ]) {
       expect(client.tables.get(table)?.size ?? 0).toBeGreaterThan(0);
     }
+  });
+
+  it('pushes the username setting', async () => {
+    const db = freshDb();
+    await updateSettings({ username: 'alice' }, makeDbApi(db) as never);
+
+    const client = new FakeClient();
+    await pushAll(db, client);
+
+    expect(client.tables.get('settings')?.get('username')).toMatchObject({
+      key: 'username',
+      value: 'alice',
+      user_id: 'user-1',
+    });
   });
 
   it('surfaces a remote upsert error instead of swallowing it', async () => {

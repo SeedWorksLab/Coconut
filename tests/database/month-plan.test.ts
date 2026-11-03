@@ -299,6 +299,103 @@ describe('the record of a month plan', () => {
     expect(await getPlannedDrawCents(MONTH_KEY, makeDbApi(raw) as never)).toBe(0);
   });
 
+  it('leaves a budget inactive at the start and lets it join the plan later', async () => {
+    const raw = freshDb();
+    seedBudgets(raw);
+    await createPlannedMonth(
+      {
+        monthKey: MONTH_KEY,
+        budgetPlans: { 1: 20000, 2: 15000 },
+        budgetActive: { 1: true, 2: false },
+        drawCents: 0,
+      },
+      makeDbApi(raw) as never
+    );
+
+    let budgets = await getMonthBudgets(MONTH_KEY, makeDbApi(raw) as never);
+    expect(
+      budgets.map((budget) => [budget.budgetId, budget.active, budget.plannedAmountCents])
+    ).toEqual([
+      [1, true, 20000],
+      [2, false, 15000],
+    ]);
+    expect(
+      (await eventsOf(raw)).map((event) => [event.kind, event.budgetId])
+    ).toEqual([['initial', 1]]);
+
+    await recordMonthPlan(
+      {
+        monthKey: MONTH_KEY,
+        plans: { 1: 20000, 2: 15000 },
+        active: { 1: true, 2: true },
+        drawCents: 0,
+      },
+      makeDbApi(raw) as never
+    );
+
+    budgets = await getMonthBudgets(MONTH_KEY, makeDbApi(raw) as never);
+    expect(budgets.map((budget) => [budget.budgetId, budget.active])).toEqual([
+      [1, true],
+      [2, true],
+    ]);
+    expect(
+      (await eventsOf(raw)).map((event) => [event.kind, event.budgetId, event.newAmountCents])
+    ).toEqual([
+      ['initial', 1, 20000],
+      ['initial', 2, 15000],
+    ]);
+  });
+
+  it('does not deactivate a budget that is already part of the month', async () => {
+    const raw = freshDb();
+    seedBudgets(raw);
+    await planned(raw, { 1: 20000, 2: 15000 });
+
+    await recordMonthPlan(
+      {
+        monthKey: MONTH_KEY,
+        plans: { 1: 20000, 2: 15000 },
+        active: { 1: false, 2: true },
+        drawCents: 0,
+      },
+      makeDbApi(raw) as never
+    );
+
+    const budgets = await getMonthBudgets(MONTH_KEY, makeDbApi(raw) as never);
+    expect(budgets.map((budget) => [budget.budgetId, budget.active])).toEqual([
+      [1, true],
+      [2, true],
+    ]);
+  });
+
+  it('adds a budget defined after the month started when a re-plan includes it', async () => {
+    const raw = freshDb();
+    seedBudgets(raw);
+    await planned(raw, { 1: 20000 });
+    raw
+      .prepare(
+        `INSERT INTO budgets (name, default_amount_cents, active, sort_order)
+         VALUES ('Travel', 12000, 1, 2)`
+      )
+      .run();
+
+    await recordMonthPlan(
+      {
+        monthKey: MONTH_KEY,
+        plans: { 1: 20000, 3: 12000 },
+        active: { 1: true, 3: true },
+        drawCents: 0,
+      },
+      makeDbApi(raw) as never
+    );
+
+    const budgets = await getMonthBudgets(MONTH_KEY, makeDbApi(raw) as never);
+    expect(budgets.map((budget) => [budget.budgetId, budget.active])).toContainEqual([3, true]);
+    expect(
+      (await eventsOf(raw)).map((event) => [event.kind, event.budgetId, event.newAmountCents])
+    ).toContainEqual(['initial', 3, 12000]);
+  });
+
   it('gives every recorded event a sync identity of its own', async () => {
     const raw = freshDb();
     seedBudgets(raw);

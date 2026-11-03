@@ -12,7 +12,7 @@ import type {
 } from '../models';
 import { getDatabase } from './database';
 import { getMonth, getClosedMonths, getPreviousMonth } from './months';
-import { getAllBudgets, getAllMonthBudgets, getActiveBudgets, getMonthBudgets } from './budgets';
+import { getAllBudgets, getAllMonthBudgets, getMonthBudgets } from './budgets';
 import {
   getActiveFixedExpenses,
   getActualAmountsByExpense,
@@ -141,7 +141,11 @@ export interface MonthPlanningInputs {
   /** Expected amounts for a month that does not exist yet. */
   fixedExpenses: MonthFixedExpense[];
   subscriptions: MonthSubscription[];
-  /** Every active budget, pre-filled with its default amount. */
+  /**
+   * Every budget, pre-filled with the amount and activation state it has for
+   * this month. A budget that is not part of the month's plan is still listed so
+   * it can be activated.
+   */
   budgets: MonthBudget[];
   /**
    * The planned amounts the month already stands at, when it exists. Empty for
@@ -176,7 +180,7 @@ export async function getMonthPlanningInputs(
       getSettings(database),
       getPreviousMonth(monthKey, database),
       getActiveFixedExpenses(database),
-      getActiveBudgets(database),
+      getAllBudgets(database),
       getAllSubscriptions(database),
     ]);
 
@@ -209,8 +213,12 @@ export async function getMonthPlanningInputs(
       }))
     : subscriptionChargesForMonth(subscriptions, monthKey);
 
+  const existingBudgetRows = await getMonthBudgets(monthKey, database);
+  const existingBudgetsById = new Map(
+    existingBudgetRows.map((row) => [row.budgetId, row])
+  );
   const currentPlans: Record<number, number> = {};
-  for (const row of await getMonthBudgets(monthKey, database)) {
+  for (const row of existingBudgetRows) {
     currentPlans[row.budgetId] = row.plannedAmountCents;
   }
 
@@ -230,12 +238,16 @@ export async function getMonthPlanningInputs(
       name: charge.name,
       amountCents: charge.amountCents,
     })),
-    budgets: budgetDefinitions.map((budget, index) => ({
-      id: index,
-      monthKey,
-      budgetId: budget.id,
-      plannedAmountCents: budget.defaultAmountCents,
-    })),
+    budgets: budgetDefinitions.map((budget, index) => {
+      const existing = existingBudgetsById.get(budget.id);
+      return {
+        id: existing?.id ?? index,
+        monthKey,
+        budgetId: budget.id,
+        plannedAmountCents: existing?.plannedAmountCents ?? budget.defaultAmountCents,
+        active: existing?.active ?? budget.active,
+      };
+    }),
     currentPlans,
     currentDrawCents: await getPlannedDrawCents(monthKey, database),
   };
@@ -320,7 +332,7 @@ export async function getBudgetPerformance(
 
   const monthsByBudget = new Map<number, BudgetMonthPerformance[]>();
   for (const monthBudget of monthBudgets) {
-    if (!closedSet.has(monthBudget.monthKey)) {
+    if (!closedSet.has(monthBudget.monthKey) || !monthBudget.active) {
       continue;
     }
     const spent = spentByBudgetByMonth.get(monthBudget.budgetId)?.get(monthBudget.monthKey) ?? 0;

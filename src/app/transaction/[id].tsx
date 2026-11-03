@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from '../../components/keyboard-aware-scroll-view';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -38,6 +38,21 @@ export default function EditTransactionScreen() {
   const [budgetId, setBudgetId] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [trace, setTrace] = useState<SharedExpenseTrace | null>(null);
+
+  // A transaction in the running month can only be assigned to a budget that is
+  // part of that month's plan. Past months keep their existing choices, and the
+  // currently selected budget is always shown even if it is no longer offered.
+  const selectableBudgets = useMemo(() => {
+    const monthBudgets =
+      currentDashboard && transaction && currentDashboard.monthKey === transaction.monthKey
+        ? currentDashboard.budgetStatuses.map((entry) => entry.budget)
+        : budgets;
+    if (budgetId !== null && !monthBudgets.some((budget) => budget.id === budgetId)) {
+      const selected = budgets.find((budget) => budget.id === budgetId);
+      return selected ? [...monthBudgets, selected] : monthBudgets;
+    }
+    return monthBudgets;
+  }, [currentDashboard, transaction, budgets, budgetId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -155,7 +170,7 @@ export default function EditTransactionScreen() {
         <View>
           <TransactionDetails transaction={transaction} symbol={settings.currencySymbol} />
           <BudgetSelect
-            budgets={budgets}
+            budgets={selectableBudgets}
             selectedId={budgetId}
             onSelect={handleBudgetChange}
             symbol={settings.currencySymbol}
@@ -185,7 +200,7 @@ export default function EditTransactionScreen() {
       ) : (
         <TransactionForm
           initial={transaction}
-          budgets={budgets}
+          budgets={selectableBudgets}
           budgetStatuses={currentDashboard?.budgetStatuses ?? []}
           symbol={settings.currencySymbol}
           activeMonthKey={activeMonthKey}

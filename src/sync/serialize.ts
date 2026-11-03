@@ -168,6 +168,7 @@ export const COMPLETE_ADAPTERS: SyncTableAdapter[] = [
       { local: 'month_key', remote: 'month_key' },
       { local: 'budget_id', remote: 'budget_uuid', fk: true },
       { local: 'planned_amount_cents', remote: 'planned_amount_cents' },
+      { local: 'active', remote: 'active', booleanType: true },
     ],
   }),
   makeAdapter({

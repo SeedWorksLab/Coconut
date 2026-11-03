@@ -163,6 +163,23 @@ const SINCE = '2020-01-01T00:00:00.000Z';
 const UPDATED = '2026-09-18T10:00:00.000Z';
 
 describe('pullChanges', () => {
+  it('pulls the username setting', async () => {
+    const raw = freshDb();
+    const client = new FakeClient();
+    client.seed('settings', {
+      key: 'username',
+      value: 'alice',
+      updated_at: UPDATED,
+    });
+
+    await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
+
+    const row = raw
+      .prepare("SELECT value FROM settings WHERE key = 'username'")
+      .get() as { value: string };
+    expect(row.value).toBe('alice');
+  });
+
   it('keeps a row with an unresolved nullable FK, storing NULL instead of dropping it', async () => {
     const raw = freshDb();
     const client = new FakeClient();
@@ -276,6 +293,7 @@ describe('pullChanges', () => {
       month_key: '2026-09',
       budget_uuid: 'budget-1',
       planned_amount_cents: 50000,
+      active: true,
       updated_at: UPDATED,
     });
     client.seed('transactions', {
@@ -313,8 +331,9 @@ describe('pullChanges', () => {
     expect(resolvedMfe.actual_amount_cents).toBe(119900);
 
     const resolvedMb = raw
-      .prepare('SELECT budget_id FROM month_budgets WHERE uuid = ?')
-      .get('mb-1') as { budget_id: number };
+      .prepare('SELECT budget_id, active FROM month_budgets WHERE uuid = ?')
+      .get('mb-1') as { budget_id: number; active: number };
     expect(resolvedMb.budget_id).toBe(budget.id);
+    expect(resolvedMb.active).toBe(1);
   });
 });

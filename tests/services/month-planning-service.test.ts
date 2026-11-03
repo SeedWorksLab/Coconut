@@ -19,7 +19,7 @@ function subscription(id: number, amountCents: number): MonthSubscription {
 }
 
 function budget(id: number, plannedAmountCents: number): MonthBudget {
-  return { id, monthKey: MONTH_KEY, budgetId: id, plannedAmountCents };
+  return { id, monthKey: MONTH_KEY, budgetId: id, plannedAmountCents, active: true };
 }
 
 function plan(overrides: Partial<Parameters<typeof planMonth>[0]> = {}) {
@@ -207,8 +207,8 @@ describe('toMonthBudgets', () => {
       { budgetId: 9, plannedAmountCents: 8000 },
     ]);
     expect(rows).toEqual([
-      { id: 0, monthKey: MONTH_KEY, budgetId: 7, plannedAmountCents: 12000 },
-      { id: 1, monthKey: MONTH_KEY, budgetId: 9, plannedAmountCents: 8000 },
+      { id: 0, monthKey: MONTH_KEY, budgetId: 7, plannedAmountCents: 12000, active: true },
+      { id: 1, monthKey: MONTH_KEY, budgetId: 9, plannedAmountCents: 8000, active: true },
     ]);
   });
 });

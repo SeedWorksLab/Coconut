@@ -58,7 +58,7 @@ function budget(id: number, name: string): Budget {
 }
 
 function monthBudget(budgetId: number, plannedAmountCents: number): MonthBudget {
-  return { id: budgetId, monthKey: MONTH_KEY, budgetId, plannedAmountCents };
+  return { id: budgetId, monthKey: MONTH_KEY, budgetId, plannedAmountCents, active: true };
 }
 
 function transaction(budgetId: number | null, amountCents: number): Transaction {
@@ -200,10 +200,37 @@ describe('reportBudgets', () => {
     expect(report).toEqual([
       {
         name: 'Groceries',
+        active: true,
         startingCents: null,
         plannedCents: 20000,
         spentCents: 16500,
         remainingCents: 3500,
+      },
+    ]);
+  });
+
+  it('marks a budget left out of the month as inactive', () => {
+    const report = reportBudgets(
+      [
+        {
+          id: 1,
+          monthKey: MONTH_KEY,
+          budgetId: 1,
+          plannedAmountCents: 20000,
+          active: false,
+        },
+      ],
+      { 1: budget(1, 'Groceries') },
+      []
+    );
+    expect(report).toEqual([
+      {
+        name: 'Groceries',
+        active: false,
+        startingCents: null,
+        plannedCents: 20000,
+        spentCents: 0,
+        remainingCents: 20000,
       },
     ]);
   });
@@ -223,6 +250,7 @@ describe('reportBudgets', () => {
     ]);
     expect(report).toContainEqual({
       name: 'No budget',
+      active: true,
       startingCents: null,
       plannedCents: 0,
       spentCents: 9000,
@@ -357,6 +385,7 @@ describe('buildMonthlyReport', () => {
     );
     expect(report.budgets).toContainEqual({
       name: 'No budget',
+      active: true,
       startingCents: null,
       plannedCents: 0,
       spentCents: 3000,

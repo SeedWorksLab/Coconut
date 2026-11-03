@@ -31,14 +31,6 @@ export async function getAllBudgets(db?: SQLiteDatabase): Promise<Budget[]> {
   return rows.map(rowToBudget);
 }
 
-export async function getActiveBudgets(db?: SQLiteDatabase): Promise<Budget[]> {
-  const database = db ?? (await getDatabase());
-  const rows = await database.getAllAsync<BudgetRow>(
-    'SELECT * FROM budgets WHERE active = 1 ORDER BY sort_order ASC, id ASC'
-  );
-  return rows.map(rowToBudget);
-}
-
 export async function getBudget(id: number, db?: SQLiteDatabase): Promise<Budget | null> {
   const database = db ?? (await getDatabase());
   const row = await database.getFirstAsync<BudgetRow>('SELECT * FROM budgets WHERE id = ?', [id]);
@@ -107,6 +99,7 @@ interface MonthBudgetRow {
   month_key: MonthKey;
   budget_id: number;
   planned_amount_cents: number;
+  active: number;
 }
 
 function rowToMonthBudget(row: MonthBudgetRow): MonthBudget {
@@ -115,6 +108,7 @@ function rowToMonthBudget(row: MonthBudgetRow): MonthBudget {
     monthKey: row.month_key,
     budgetId: row.budget_id,
     plannedAmountCents: row.planned_amount_cents,
+    active: row.active === 1,
   };
 }
 
@@ -124,8 +118,8 @@ export async function insertMonthBudget(
 ): Promise<void> {
   const database = db ?? (await getDatabase());
   await database.runAsync(
-    'INSERT INTO month_budgets (month_key, budget_id, planned_amount_cents) VALUES (?, ?, ?)',
-    [input.monthKey, input.budgetId, input.plannedAmountCents]
+    'INSERT INTO month_budgets (month_key, budget_id, planned_amount_cents, active) VALUES (?, ?, ?, ?)',
+    [input.monthKey, input.budgetId, input.plannedAmountCents, input.active ? 1 : 0]
   );
 }
 
@@ -157,6 +151,18 @@ export async function setMonthBudgetPlanned(
   const database = db ?? (await getDatabase());
   await database.runAsync('UPDATE month_budgets SET planned_amount_cents = ? WHERE id = ?', [
     plannedAmountCents,
+    id,
+  ]);
+}
+
+export async function setMonthBudgetActive(
+  id: number,
+  active: boolean,
+  db?: SQLiteDatabase
+): Promise<void> {
+  const database = db ?? (await getDatabase());
+  await database.runAsync('UPDATE month_budgets SET active = ? WHERE id = ?', [
+    active ? 1 : 0,
     id,
   ]);
 }

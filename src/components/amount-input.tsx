@@ -10,6 +10,7 @@ interface AmountInputProps {
   error?: string | null;
   prefix?: string;
   allowNegative?: boolean;
+  disabled?: boolean;
 }
 
 function centsToRawInput(cents: number): string {
@@ -28,6 +29,7 @@ export function AmountInput({
   error,
   prefix,
   allowNegative = false,
+  disabled = false,
 }: AmountInputProps) {
   const [text, setText] = useState(() =>
     value === null ? '' : centsToRawInput(value)
@@ -104,6 +106,7 @@ export function AmountInput({
         onBlur={formatOnBlur}
         keyboardType="decimal-pad"
         autoFocus={autoFocus}
+        disabled={disabled}
         error={Boolean(error)}
         left={prefix ? <PaperTextInput.Affix text={prefix} /> : undefined}
         right={

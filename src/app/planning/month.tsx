@@ -41,8 +41,8 @@ export default function MonthPlanScreen() {
     <MonthPlanningEditor
       monthKey={currentMonth.monthKey}
       mode="replan"
-      onCommit={async ({ plans, drawCents }) => {
-        await replanMonth({ monthKey: currentMonth.monthKey, plans, drawCents });
+      onCommit={async ({ plans, active, drawCents }) => {
+        await replanMonth({ monthKey: currentMonth.monthKey, plans, active, drawCents });
         router.back();
       }}
     />

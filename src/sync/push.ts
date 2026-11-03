@@ -290,13 +290,14 @@ export interface PushResult {
   settingsPushed: number;
 }
 
-async function pushSettings(
+export async function pushSettings(
   client: SupabaseClient,
   db: SQLiteDatabase,
-  userId: string
+  userId: string,
+  keys: readonly string[] = SYNC_SETTINGS_KEYS
 ): Promise<number> {
   let pushed = 0;
-  for (const key of SYNC_SETTINGS_KEYS) {
+  for (const key of keys) {
     const local = await db.getFirstAsync<{ value: string; updated_at: string | null }>(
       'SELECT value, updated_at FROM settings WHERE key = ?',
       [key]

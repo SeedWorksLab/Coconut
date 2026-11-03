@@ -61,8 +61,13 @@ export function MonthPlanningOverlay() {
           monthKey={pendingMonthKey}
           mode="start"
           bottomInset={insets.bottom}
-          onCommit={async ({ plans, drawCents }) => {
-            await startMonth({ monthKey: pendingMonthKey, budgetPlans: plans, drawCents });
+          onCommit={async ({ plans, active, drawCents }) => {
+            await startMonth({
+              monthKey: pendingMonthKey,
+              budgetPlans: plans,
+              budgetActive: active,
+              drawCents,
+            });
           }}
         />
       </View>

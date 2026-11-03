@@ -154,10 +154,10 @@ export default function SyncScreen() {
     const normalized = trimmed === '' ? null : trimmed;
     setBusy(true);
     try {
-      await setUsername(normalized);
       if (sessionUser) {
         await setMemberDisplayNameForUser(sessionUser.id, normalized);
       }
+      await setUsername(normalized);
       setUsernameDraft(null);
       setToast('Username saved');
     } catch {
@@ -405,8 +405,9 @@ export default function SyncScreen() {
               Save username
             </Button>
             <PaperText variant="bodySmall" style={styles.hint}>
-              Shown as your name on shared expenses. Your email is shown instead when no username
-              is set.
+              One username per account. It is shown on shared expenses and replaces the username
+              on your other devices when they sync. If two devices change it offline, the latest
+              save wins. Your email is shown instead when no username is set.
             </PaperText>
           </Card.Content>
         </Card>

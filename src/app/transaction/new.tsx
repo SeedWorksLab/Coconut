@@ -9,11 +9,14 @@ export default function NewTransactionScreen() {
   const { budgets, settings, activeMonthKey, addTransaction, suggestBudgets, currentDashboard } =
     useAppData();
   const router = useRouter();
+  // Only budgets that are part of this month's plan can receive a transaction.
+  const selectableBudgets =
+    currentDashboard?.budgetStatuses.map((entry) => entry.budget) ?? budgets;
 
   return (
     <KeyboardAwareScrollView contentContainerStyle={styles.container}>
       <TransactionForm
-        budgets={budgets}
+        budgets={selectableBudgets}
         budgetStatuses={currentDashboard?.budgetStatuses ?? []}
         symbol={settings.currencySymbol}
         activeMonthKey={activeMonthKey}

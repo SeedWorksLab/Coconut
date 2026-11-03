@@ -29,6 +29,11 @@ export interface MonthlyReportSubscription {
 export interface MonthlyReportBudget {
   name: string;
   /**
+   * Whether the budget was part of the month's plan. A budget left out at the
+   * start is reported as inactive even though its definition may still exist.
+   */
+  active: boolean;
+  /**
    * The amount the budget was planned at when the month started, or null when the
    * month has no plan record and so no known starting point.
    */
@@ -160,6 +165,7 @@ export function reportBudgets(
     );
     return {
       name: definition?.name ?? `Budget #${monthBudget.budgetId}`,
+      active: monthBudget.active,
       startingCents: plan.startingByBudget.get(monthBudget.budgetId) ?? null,
       plannedCents: status.plannedCents,
       spentCents: status.spentCents,
@@ -174,6 +180,7 @@ export function reportBudgets(
   if (uncategorizedCents > 0) {
     entries.push({
       name: 'No budget',
+      active: true,
       startingCents: null,
       plannedCents: 0,
       spentCents: uncategorizedCents,

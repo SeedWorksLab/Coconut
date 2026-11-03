@@ -4,6 +4,7 @@ const http = require('http');
 const fs = require('fs');
 
 const DIST_DIR = path.join(__dirname, '../dist');
+const LOCAL_SERVER_PORT = 47821;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -73,7 +74,7 @@ function startServer() {
       });
     });
     server.on('error', reject);
-    server.listen(0, '127.0.0.1', () => {
+    server.listen(LOCAL_SERVER_PORT, '127.0.0.1', () => {
       const { port } = server.address();
       resolve({ server, port });
     });

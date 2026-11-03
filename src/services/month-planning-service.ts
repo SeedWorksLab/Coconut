@@ -188,5 +188,6 @@ export function toMonthBudgets(
     monthKey,
     budgetId: plan.budgetId,
     plannedAmountCents: plan.plannedAmountCents,
+    active: true,
   }));
 }

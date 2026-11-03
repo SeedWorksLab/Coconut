@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button, Card, List, Text } from 'react-native-paper';
+import { Button, Card, List, Portal, Switch, Text } from 'react-native-paper';
 
 import { useAppData } from '../data/DataProvider';
 import {
@@ -20,6 +20,7 @@ import {
 import { formatCents } from '../utils/currency';
 import { monthLabel } from '../utils/date';
 import { AmountInput } from './amount-input';
+import { AppDialog } from './app-dialog';
 import { KeyboardAwareScrollView } from './keyboard-aware-scroll-view';
 import { LoadingScreen } from './loading-screen';
 import { useAppTheme } from '../theme';
@@ -28,6 +29,7 @@ export type MonthPlanningMode = 'start' | 'replan';
 
 export interface MonthPlanCommit {
   plans: Record<number, number>;
+  active: Record<number, boolean>;
   drawCents: number;
 }
 
@@ -71,6 +73,8 @@ export function MonthPlanningEditor({
   const [averageSpendingCents, setAverageSpendingCents] = useState<number | null>(null);
   const [draw, setDraw] = useState<number | null>(0);
   const [plans, setPlans] = useState<Record<number, number>>({});
+  const [active, setActive] = useState<Record<number, boolean>>({});
+  const [pendingActivation, setPendingActivation] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -92,14 +96,18 @@ export function MonthPlanningEditor({
         setInputs(nextInputs);
         setAverageSpendingCents(averageMonthlySpending(records));
         setDraw(nextInputs.currentDrawCents);
-        // A month that stands at a plan is re-planned from that plan; a month
-        // that does not exist yet starts from the budget defaults.
+        // Every budget is planned from the amount and activation state it has
+        // for this month, falling back to its definition for a month that does
+        // not exist yet.
         setPlans(
-          Object.keys(nextInputs.currentPlans).length > 0
-            ? { ...nextInputs.currentPlans }
-            : Object.fromEntries(
-                nextInputs.budgets.map((budget) => [budget.budgetId, budget.plannedAmountCents])
-              )
+          Object.fromEntries(
+            nextInputs.budgets.map((budget) => [budget.budgetId, budget.plannedAmountCents])
+          )
+        );
+        setActive(
+          Object.fromEntries(
+            nextInputs.budgets.map((budget) => [budget.budgetId, budget.active])
+          )
         );
         setLoadError(null);
       } catch {
@@ -119,11 +127,13 @@ export function MonthPlanningEditor({
 
   const planned = useMemo(
     () =>
-      Object.entries(plans).map(([budgetId, plannedAmountCents]) => ({
-        budgetId: Number(budgetId),
-        plannedAmountCents,
-      })),
-    [plans]
+      Object.entries(plans)
+        .filter(([budgetId]) => active[Number(budgetId)] !== false)
+        .map(([budgetId, plannedAmountCents]) => ({
+          budgetId: Number(budgetId),
+          plannedAmountCents,
+        })),
+    [plans, active]
   );
 
   const plan = useMemo(() => {
@@ -165,6 +175,15 @@ export function MonthPlanningEditor({
     );
   }, [mode, inputs, plans, drawCents]);
 
+  const activeChanged = useMemo(() => {
+    if (!inputs) {
+      return false;
+    }
+    return inputs.budgets.some(
+      (budget) => (active[budget.budgetId] ?? budget.active) !== budget.active
+    );
+  }, [inputs, active]);
+
   if (inputs === null || plan === null) {
     if (loadError === null) {
       return <LoadingScreen />;
@@ -186,13 +205,13 @@ export function MonthPlanningEditor({
   }
 
   const blocked = saving || plan.overPlannedCents > 0 || drawTooLarge;
-  const nothingToRecord = replan !== null && replan.unchanged;
+  const nothingToRecord = replan !== null && replan.unchanged && !activeChanged;
 
   const commit = async () => {
     setSaving(true);
     setSaveError(null);
     try {
-      await onCommit({ plans, drawCents });
+      await onCommit({ plans, active, drawCents });
     } catch {
       setSaveError('Nothing was changed.');
     } finally {
@@ -300,26 +319,50 @@ export function MonthPlanningEditor({
             </Text>
           ) : (
             inputs.budgets.map((budget) => {
+              const isActive = active[budget.budgetId] ?? budget.active;
               const headroom = budgetHeadroomCents(plan, planRows, budget.budgetId);
               const value = plans[budget.budgetId] ?? 0;
               return (
-                <AmountInput
-                  key={budget.budgetId}
-                  label={nameOf.get(budget.budgetId) ?? `Budget ${budget.budgetId}`}
-                  value={value}
-                  onChange={(next) =>
-                    setPlans((current) => ({
-                      ...current,
-                      [budget.budgetId]: next ?? 0,
-                    }))
-                  }
-                  prefix={symbol}
-                  error={
-                    headroom < 0
-                      ? `This month has no room left for it: ${formatCents(headroom, symbol)} short.`
-                      : null
-                  }
-                />
+                <View key={budget.budgetId} style={styles.budgetRow}>
+                  <View style={styles.budgetHeader}>
+                    <Text variant="titleSmall" style={styles.budgetTitle}>
+                      {nameOf.get(budget.budgetId) ?? `Budget ${budget.budgetId}`}
+                    </Text>
+                    <Switch
+                      value={isActive}
+                      onValueChange={(next) => {
+                        if (mode === 'replan') {
+                          if (next) {
+                            setPendingActivation(budget.budgetId);
+                          }
+                          return;
+                        }
+                        setActive((current) => ({
+                          ...current,
+                          [budget.budgetId]: next,
+                        }));
+                      }}
+                      disabled={mode === 'replan' && isActive}
+                    />
+                  </View>
+                  <AmountInput
+                    label={isActive ? 'Planned amount' : 'Inactive this month'}
+                    value={value}
+                    onChange={(next) =>
+                      setPlans((current) => ({
+                        ...current,
+                        [budget.budgetId]: next ?? 0,
+                      }))
+                    }
+                    prefix={symbol}
+                    disabled={!isActive}
+                    error={
+                      isActive && headroom < 0
+                        ? `This month has no room left for it: ${formatCents(headroom, symbol)} short.`
+                        : null
+                    }
+                  />
+                </View>
               );
             })
           )}
@@ -370,6 +413,36 @@ export function MonthPlanningEditor({
       >
         {mode === 'start' ? `Start ${monthLabel(monthKey)}` : 'Update the plan'}
       </Button>
+
+      <Portal>
+        <AppDialog
+          visible={pendingActivation !== null}
+          onDismiss={() => setPendingActivation(null)}
+        >
+          <AppDialog.Title>Activate this budget?</AppDialog.Title>
+          <AppDialog.Content>
+            <Text variant="bodyMedium">
+              {`${nameOf.get(pendingActivation ?? -1) ?? 'This budget'} will become part of ${monthLabel(monthKey)}. Once activated, it cannot be made inactive again this month.`}
+            </Text>
+          </AppDialog.Content>
+          <AppDialog.Actions>
+            <Button onPress={() => setPendingActivation(null)}>Cancel</Button>
+            <Button
+              onPress={() => {
+                if (pendingActivation !== null) {
+                  setActive((current) => ({
+                    ...current,
+                    [pendingActivation]: true,
+                  }));
+                }
+                setPendingActivation(null);
+              }}
+            >
+              Activate
+            </Button>
+          </AppDialog.Actions>
+        </AppDialog>
+      </Portal>
     </KeyboardAwareScrollView>
   );
 }
@@ -392,6 +465,19 @@ const styles = StyleSheet.create({
   hint: {
     opacity: 0.7,
     paddingVertical: 8,
+  },
+  budgetRow: {
+    marginBottom: 12,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  budgetTitle: {
+    flex: 1,
+    paddingRight: 12,
   },
   tally: {
     paddingTop: 8,

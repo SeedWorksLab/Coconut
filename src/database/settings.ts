@@ -75,7 +75,10 @@ export async function updateSettings(
   const database = db ?? (await getDatabase());
   const current = await getSettings(database);
   const next: Settings = { ...current, ...patch };
-  for (const key of Object.keys(next) as (keyof Settings)[]) {
+  for (const key of Object.keys(patch) as (keyof Settings)[]) {
+    if (patch[key] === undefined) {
+      continue;
+    }
     const dbKey = SETTINGS_KEY_MAP[key];
     const value = next[key] === null ? '' : String(next[key]);
     await database.runAsync(

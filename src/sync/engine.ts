@@ -4,8 +4,8 @@ import { getDatabase } from '../database/database';
 import { getSyncState, updateSyncState } from '../database/syncState';
 import { getMeta, setMeta } from '../database/syncMeta';
 import { reconcileSharedTransactions } from '../database/sharedLinking';
-import { pushChanges, type PushResult } from './push';
-import { pullChanges, type PullResult } from './pull';
+import { pushChanges, pushSettings, type PushResult } from './push';
+import { pullChanges, pullSettings, type PullResult } from './pull';
 import { pushSharedChanges, pullSharedChanges, type SharedPushResult, type SharedPullResult } from './shared';
 import { getSupabaseSessionUser, getClient, SyncAuthError } from './supabase';
 import { nowIso } from './time';
@@ -71,6 +71,10 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
       const since = await getMeta(SHARED_LAST_SYNC_KEY, database);
       const pulled = await pullSharedChanges(client, database, since ?? undefined);
       await reconcileSharedTransactions(user.id, database);
+      // The username is an account identity used by shared spaces, so it travels
+      // with the lightweight sync instead of waiting for a full personal sync.
+      await pushSettings(client, database, user.id, ['username']);
+      await pullSettings(database, client, EPOCH, ['username']);
       await setMeta(SHARED_LAST_SYNC_KEY, nowIso(), database);
       await updateSyncState({ lastSyncStatus: 'success', lastSyncError: null }, database);
       return { pushed, pulled };

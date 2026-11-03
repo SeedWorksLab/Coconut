@@ -264,12 +264,15 @@ async function buildDashboard(monthKey: MonthKey): Promise<MonthDashboard | null
     return null;
   }
   const { month, fixedExpenses, budgets, transactions, income, subscriptions } = data;
+  // A budget left out of this month's plan is not part of what it is expected to
+  // spend, so neither the forecast nor the dashboard includes it.
+  const activeBudgets = budgets.filter((budget) => budget.active);
   const forecast = forecastMonth({
     month,
     income,
     subscriptions,
     fixedExpenses,
-    budgets,
+    budgets: activeBudgets,
     transactions,
   });
   const reserveProjection = projectReserve({
@@ -296,7 +299,7 @@ async function buildDashboard(monthKey: MonthKey): Promise<MonthDashboard | null
   }
 
   const budgetStatuses: BudgetWithStatus[] = [];
-  for (const monthBudget of budgets) {
+  for (const monthBudget of activeBudgets) {
     const budget = definitionMap.get(monthBudget.budgetId);
     if (!budget) {
       continue;

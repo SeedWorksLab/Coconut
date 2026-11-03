@@ -10,9 +10,10 @@ import {
   setMonthFixedExpenseExpected,
 } from './fixedExpenses';
 import {
-  getActiveBudgets,
+  getAllBudgets,
   getMonthBudgets,
   insertMonthBudget,
+  setMonthBudgetActive,
   setMonthBudgetPlanned,
 } from './budgets';
 import { getSettings } from './settings';
@@ -170,7 +171,7 @@ export async function materializeMonth(
     }
   }
 
-  const budgets = await getActiveBudgets(database);
+  const budgets = await getAllBudgets(database);
   for (const budget of budgets) {
     const existing = await getMonthBudgets(monthKey, database).then((rows) =>
       rows.find((row) => row.budgetId === budget.id)
@@ -181,6 +182,7 @@ export async function materializeMonth(
           monthKey,
           budgetId: budget.id,
           plannedAmountCents: budget.defaultAmountCents,
+          active: budget.active,
         },
         database
       );
@@ -196,6 +198,12 @@ export interface PlannedMonthInput {
   monthKey: MonthKey;
   /** Planned amount per budget; a budget left out keeps its default amount. */
   budgetPlans: Record<number, number>;
+  /**
+   * Whether each budget is part of the month's plan. A budget left out keeps the
+   * activation state it was materialized with. This is the only point where a
+   * budget may be left inactive; re-planning can only activate it.
+   */
+  budgetActive?: Record<number, boolean>;
   /**
    * The reserve draw the user planned this month with. Recorded as the month's
    * opening draw so that raising it later is a change against a known start; it
@@ -235,13 +243,21 @@ export async function createPlannedMonth(
       if (plannedAmountCents !== undefined && plannedAmountCents !== monthBudget.plannedAmountCents) {
         await setMonthBudgetPlanned(monthBudget.id, plannedAmountCents, database);
       }
+      const active = input.budgetActive?.[monthBudget.budgetId];
+      if (active !== undefined && active !== monthBudget.active) {
+        await setMonthBudgetActive(monthBudget.id, active, database);
+      }
     }
+    // The record opens only for budgets that are part of the plan. An inactive
+    // budget joins it if it is activated later in the month.
     await writeMonthPlanStart(
       input.monthKey,
-      (await getMonthBudgets(input.monthKey, database)).map((row) => ({
-        budgetId: row.budgetId,
-        plannedAmountCents: row.plannedAmountCents,
-      })),
+      (await getMonthBudgets(input.monthKey, database))
+        .filter((row) => row.active)
+        .map((row) => ({
+          budgetId: row.budgetId,
+          plannedAmountCents: row.plannedAmountCents,
+        })),
       input.drawCents,
       database
     );

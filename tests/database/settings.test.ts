@@ -69,4 +69,27 @@ describe('settings username', () => {
     expect(settings.currencySymbol).toBe('$');
     expect(settings.username).toBe('bob');
   });
+
+  it('writes only the setting that changed', async () => {
+    const raw = freshDb();
+    await updateSettings({ currencySymbol: '$' }, makeDbApi(raw) as never);
+    raw
+      .prepare("UPDATE settings SET updated_at = '2020-01-01T00:00:00.000Z' WHERE key = 'currency_symbol'")
+      .run();
+    await updateSettings({ username: 'bob' }, makeDbApi(raw) as never);
+
+    const currency = raw
+      .prepare("SELECT updated_at FROM settings WHERE key = 'currency_symbol'")
+      .get() as { updated_at: string };
+    expect(currency.updated_at).toBe('2020-01-01T00:00:00.000Z');
+  });
+
+  it('creates no other setting rows when only the username is saved', async () => {
+    const raw = freshDb();
+    await updateSettings({ username: 'alice' }, makeDbApi(raw) as never);
+    const rows = raw.prepare('SELECT key FROM settings ORDER BY key').all() as Array<{
+      key: string;
+    }>;
+    expect(rows).toEqual([{ key: 'username' }]);
+  });
 });

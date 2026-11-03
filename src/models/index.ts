@@ -70,6 +70,12 @@ export interface MonthBudget {
   monthKey: MonthKey;
   budgetId: number;
   plannedAmountCents: number;
+  /**
+   * Whether the budget is part of this month's plan. A budget can be left out
+   * when the month is first planned; it can then be activated later in the same
+   * month, but never deactivated again once active.
+   */
+  active: boolean;
 }
 
 /**
