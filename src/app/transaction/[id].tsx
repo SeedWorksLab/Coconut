@@ -7,6 +7,7 @@ import type { Attachment, Transaction } from '../../models';
 import { getTransaction } from '../../database/transactions';
 import { getExpenseTraceByOriginId, type SharedExpenseTrace } from '../../database/sharedExpenses';
 import { useAppData } from '../../data/DataProvider';
+import { useI18n } from '../../i18n';
 import { TransactionForm } from '../../components/transaction-form';
 import { TransactionDetails } from '../../components/transaction-details';
 import { AttachmentField } from '../../components/attachment-field';
@@ -32,6 +33,7 @@ export default function EditTransactionScreen() {
     suggestBudgets,
   } = useAppData();
   const theme = useAppTheme();
+  const { t } = useI18n();
   const router = useRouter();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [attachment, setAttachment] = useState<Attachment | null>(null);
@@ -142,26 +144,26 @@ export default function EditTransactionScreen() {
       {trace ? (
         <Card mode="outlined" style={styles.sharedCard}>
           <Card.Title
-            title="Shared expense"
+            title={t('route.sharedExpense')}
             subtitle={trace.spaceName}
             left={(props) => <List.Icon {...props} icon="account-group-outline" />}
           />
           <Card.Content>
             <View style={styles.traceRow}>
-              <Text variant="bodyMedium">Paid by</Text>
+              <Text variant="bodyMedium">{t('route.paidBy')}</Text>
               <Text variant="bodyMedium">{trace.paidByName}</Text>
             </View>
             <View style={styles.traceRow}>
-              <Text variant="bodyMedium">Expense total</Text>
+              <Text variant="bodyMedium">{t('route.expenseTotal')}</Text>
               <Text variant="bodyMedium">
                 {formatCents(trace.totalAmountCents, settings.currencySymbol)}
               </Text>
             </View>
             <Text variant="bodySmall" style={styles.traceHint}>
-              This transaction is derived from the shared expense and cannot be edited here.
+              {t('route.sharedDerivedHint')}
             </Text>
             <Button mode="outlined" icon="open-in-new" onPress={openSharedExpense} style={styles.traceButton}>
-              Open shared expense
+              {t('route.openSharedExpense')}
             </Button>
           </Card.Content>
         </Card>
@@ -182,7 +184,7 @@ export default function EditTransactionScreen() {
             editedTransaction={transaction}
           />
           <Text variant="bodySmall" style={styles.attachmentHint}>
-            Attachment is kept on this device only.
+            {t('route.attachmentLocal')}
           </Text>
           <AttachmentField value={attachment} onChange={handleAttachmentChange} />
         </View>
@@ -194,7 +196,9 @@ export default function EditTransactionScreen() {
             budgetName={budgetName ?? ''}
           />
           <Text variant="bodySmall" style={styles.closedHint}>
-            {`${monthLabel(transaction.monthKey)} is closed, so this transaction is read-only.`}
+            {t('route.closedTransactionReadOnly', {
+              month: monthLabel(transaction.monthKey),
+            })}
           </Text>
         </View>
       ) : (
@@ -218,20 +222,20 @@ export default function EditTransactionScreen() {
             textColor={theme.semantic.delete}
             onPress={() => setConfirmDelete(true)}
           >
-            Delete transaction
+            {t('route.deleteTransaction')}
           </Button>
         </View>
       )}
       <Portal>
         <AppDialog visible={confirmDelete} onDismiss={() => setConfirmDelete(false)}>
-          <AppDialog.Title>Delete this transaction?</AppDialog.Title>
+          <AppDialog.Title>{t('route.deleteTransactionTitle')}</AppDialog.Title>
           <AppDialog.Content>
             <Text variant="bodyMedium">
-              This transaction will be permanently removed from this month.
+              {t('route.deleteTransactionBody')}
             </Text>
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button onPress={() => setConfirmDelete(false)}>{t('common.cancel')}</Button>
             <Button
               mode="contained"
               buttonColor={theme.semantic.delete}
@@ -240,7 +244,7 @@ export default function EditTransactionScreen() {
                 removeTransaction(transaction.id).then(() => router.back());
               }}
             >
-              Delete
+              {t('route.delete')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>

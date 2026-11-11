@@ -28,6 +28,7 @@ import type {
 } from '../../models';
 import { DateField } from '../../components/date-field';
 import { useAppData } from '../../data/DataProvider';
+import { useI18n, type TranslationKey } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import { formatCents, centsFromString } from '../../utils/currency';
 import { DAYJS_STORE_DATE_FORMAT } from '../../utils/date';
@@ -48,10 +49,28 @@ import {
   parsePercentToBasisPoints,
   resolveSplit,
   validateExpense,
+  type SharedExpenseValidationError,
 } from '../../services/shared-expense-service';
 
-function memberName(member: SharedSpaceMember): string {
-  return member.displayName ?? member.email ?? `Member #${member.id}`;
+const SHARED_EXPENSE_ERROR_KEYS: Record<SharedExpenseValidationError, TranslationKey> = {
+  selectMember: 'sharedExpense.error.selectMember',
+  addMember: 'sharedExpense.error.addMember',
+  negativeAmount: 'sharedExpense.error.negativeAmount',
+  splitTotal: 'sharedExpense.error.splitTotal',
+  negativePercent: 'sharedExpense.error.negativePercent',
+  percentTotal: 'sharedExpense.error.percentTotal',
+  totalPositive: 'sharedExpense.error.totalPositive',
+  addRestUnavailable: 'sharedExpense.error.addRestUnavailable',
+  descriptionRequired: 'sharedExpense.error.descriptionRequired',
+  selectPayer: 'sharedExpense.error.selectPayer',
+  unknownMember: 'sharedExpense.error.unknownMember',
+  negativeSplit: 'sharedExpense.error.negativeSplit',
+  dateBeforePeriod: 'sharedExpense.error.dateBeforePeriod',
+  dateFuture: 'sharedExpense.error.dateFuture',
+};
+
+function memberName(member: SharedSpaceMember, fallback: string): string {
+  return member.displayName ?? member.email ?? fallback;
 }
 
 function centsToInput(totalCents: number): string {
@@ -89,6 +108,7 @@ export default function SharedExpenseScreen() {
   const router = useRouter();
   const { refresh, settings } = useAppData();
   const theme = useAppTheme();
+  const { t } = useI18n();
 
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [members, setMembers] = useState<SharedSpaceMember[]>([]);
@@ -128,7 +148,7 @@ export default function SharedExpenseScreen() {
 
     const existing = await getExpenseWithSplits(editingId);
     if (!existing) {
-      setToast('This expense could not be found.');
+      setToast(t('sharedExpense.notFound'));
       router.back();
       return;
     }
@@ -154,7 +174,7 @@ export default function SharedExpenseScreen() {
     setPeriod(expensePeriod ?? null);
     setEditable(expensePeriod?.status === 'open');
     setLoading(false);
-  }, [spaceId, editingId, router]);
+  }, [spaceId, editingId, router, t]);
 
   const loadedRef = useRef(false);
   useFocusEffect(
@@ -163,8 +183,8 @@ export default function SharedExpenseScreen() {
         return;
       }
       loadedRef.current = true;
-      void load().catch(() => setToast('Could not load this space'));
-    }, [load])
+      void load().catch(() => setToast(t('sharedExpense.loadError')));
+    }, [load, t])
   );
 
   const totalCents = useMemo(() => centsFromString(total) ?? 0, [total]);
@@ -209,7 +229,7 @@ export default function SharedExpenseScreen() {
   function handleAddRest(): void {
     const result = fillRemainingSplit(method, totalCents, inputsForRest);
     if (!result.ok) {
-      setToast(result.error);
+      setToast(t(SHARED_EXPENSE_ERROR_KEYS[result.error]));
       return;
     }
     if (method === 'exact') {
@@ -227,19 +247,19 @@ export default function SharedExpenseScreen() {
 
   async function handleSave(): Promise<void> {
     if (!sessionUser) {
-      setError('Sign in to save a shared expense.');
+      setError(t('sharedExpense.signInError'));
       return;
     }
     if (!period) {
-      setError('This space has no open period.');
+      setError(t('sharedExpense.noPeriod'));
       return;
     }
     if (!editable) {
-      setError('This expense can no longer be edited.');
+      setError(t('sharedExpense.noEdit'));
       return;
     }
     if (!preview.ok) {
-      setError(preview.error);
+      setError(t(SHARED_EXPENSE_ERROR_KEYS[preview.error]));
       return;
     }
     const validation = validateExpense({
@@ -253,7 +273,7 @@ export default function SharedExpenseScreen() {
       today: dayjs().format(DAYJS_STORE_DATE_FORMAT),
     });
     if (!validation.ok) {
-      setError(validation.error);
+      setError(t(SHARED_EXPENSE_ERROR_KEYS[validation.error]));
       return;
     }
     setError(null);
@@ -278,7 +298,7 @@ export default function SharedExpenseScreen() {
       await refresh();
       router.back();
     } catch {
-      setToast('Could not save the expense');
+      setToast(t('sharedExpense.saveError'));
     } finally {
       setBusy(false);
     }
@@ -297,7 +317,7 @@ export default function SharedExpenseScreen() {
       await refresh();
       router.back();
     } catch {
-      setToast('Could not delete the expense');
+      setToast(t('sharedExpense.deleteError'));
     } finally {
       setBusy(false);
     }
@@ -311,7 +331,7 @@ export default function SharedExpenseScreen() {
     );
   }
 
-  const closedNotice = !editable ? 'This expense belongs to a closed period and can no longer be changed.' : null;
+  const closedNotice = !editable ? t('sharedExpense.closedNotice') : null;
 
   return (
     <KeyboardAwareScrollView contentContainerStyle={styles.container} keyboardBottomOffset={16}>
@@ -324,7 +344,7 @@ export default function SharedExpenseScreen() {
         <Card.Content>
           <PaperTextInput
             mode="outlined"
-            label="Description"
+            label={t('form.description')}
             value={description}
             onChangeText={setDescription}
             style={styles.input}
@@ -332,7 +352,7 @@ export default function SharedExpenseScreen() {
           />
           <PaperTextInput
             mode="outlined"
-            label={`Total (${settings.currencySymbol})`}
+            label={t('sharedExpense.totalWithSymbol', { symbol: settings.currencySymbol })}
             value={total}
             onChangeText={setTotal}
             keyboardType="decimal-pad"
@@ -348,7 +368,7 @@ export default function SharedExpenseScreen() {
           />
           <PaperTextInput
             mode="outlined"
-            label="Note"
+            label={t('form.note')}
             value={note}
             onChangeText={setNote}
             style={styles.input}
@@ -358,7 +378,7 @@ export default function SharedExpenseScreen() {
       </Card>
 
       <Card mode="elevated" style={styles.card}>
-        <Card.Title title="Paid by" />
+        <Card.Title title={t('sharedExpense.paidBy')} />
         <Card.Content style={styles.cardContent}>
           <View style={styles.chips}>
             {members.map((member) => (
@@ -372,7 +392,7 @@ export default function SharedExpenseScreen() {
                   backgroundColor: paidBy === member.id ? theme.colors.secondaryContainer : 'transparent',
                 }}
               >
-                {memberName(member)}
+                {memberName(member, t('sharedBalances.memberNumber', { id: member.id }))}
               </Chip>
             ))}
           </View>
@@ -380,15 +400,15 @@ export default function SharedExpenseScreen() {
       </Card>
 
       <Card mode="elevated" style={styles.card}>
-        <Card.Title title="Split" />
+        <Card.Title title={t('sharedExpense.split')} />
         <Card.Content style={styles.cardContent}>
           <SegmentedButtons
             value={method}
             onValueChange={(value) => setMethod(value as SharedSplitMethod)}
             buttons={[
-              { value: 'equal', label: 'Equal', disabled: !editable },
-              { value: 'exact', label: 'Exact', disabled: !editable },
-              { value: 'percentage', label: 'Percent', disabled: !editable },
+              { value: 'equal', label: t('sharedExpense.equal'), disabled: !editable },
+              { value: 'exact', label: t('sharedExpense.exact'), disabled: !editable },
+              { value: 'percentage', label: t('sharedExpense.percent'), disabled: !editable },
             ]}
           />
           <Divider style={styles.divider} />
@@ -400,7 +420,7 @@ export default function SharedExpenseScreen() {
                 icon="plus"
                 onPress={handleAddRest}
               >
-                Add rest
+                {t('sharedExpense.addRest')}
               </Button>
             </View>
           ) : null}
@@ -411,7 +431,9 @@ export default function SharedExpenseScreen() {
             return (
               <View key={member.id} style={styles.memberRow}>
                 <View style={styles.memberName}>
-                  <PaperText variant="bodyLarge">{memberName(member)}</PaperText>
+                  <PaperText variant="bodyLarge">
+                    {memberName(member, t('sharedBalances.memberNumber', { id: member.id }))}
+                  </PaperText>
                   {resolved !== null ? (
                     <PaperText variant="bodySmall" style={styles.share}>
                       {formatCents(resolved, settings.currencySymbol)}
@@ -462,7 +484,7 @@ export default function SharedExpenseScreen() {
         disabled={busy || members.length === 0 || !period || !editable}
         style={styles.button}
       >
-        {editable ? 'Save expense' : 'Period closed'}
+        {editable ? t('sharedExpense.save') : t('sharedExpense.periodClosed')}
       </Button>
 
       {expense ? (
@@ -474,28 +496,27 @@ export default function SharedExpenseScreen() {
           disabled={!editable}
           style={styles.deleteButton}
         >
-          Delete expense
+          {t('sharedExpense.delete')}
         </Button>
       ) : null}
 
       <Portal>
         <AppDialog visible={confirmDelete} onDismiss={() => setConfirmDelete(false)}>
-          <AppDialog.Title>Delete this expense?</AppDialog.Title>
+          <AppDialog.Title>{t('sharedExpense.deleteTitle')}</AppDialog.Title>
           <AppDialog.Content>
             <PaperText variant="bodyMedium">
-              It will be removed from this space for everyone, and the linked transaction will be
-              removed from the personal expenses of every member.
+              {t('sharedExpense.deleteBody')}
             </PaperText>
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button onPress={() => setConfirmDelete(false)}>{t('common.cancel')}</Button>
             <Button
               mode="contained"
               buttonColor={theme.semantic.delete}
               loading={busy}
               onPress={() => void handleDelete()}
             >
-              Delete
+              {t('common.delete')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>

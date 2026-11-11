@@ -1,3 +1,7 @@
+import type { Language } from '../i18n/types';
+import { whatsNewDe } from './whats-new.de';
+import { whatsNewHu } from './whats-new.hu';
+
 export interface WhatsNewEntry {
   version: string;
   releasedAt: string;
@@ -253,3 +257,8 @@ export const whatsNew: WhatsNewEntry[] = [
     ],
   },
 ];
+export const whatsNewByLanguage: Record<Language, WhatsNewEntry[]> = {
+  en: whatsNew,
+  hu: whatsNewHu,
+  de: whatsNewDe,
+};

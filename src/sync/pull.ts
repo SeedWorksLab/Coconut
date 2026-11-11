@@ -1,14 +1,23 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SQLiteDatabase, SQLiteBindValue } from 'expo-sqlite';
 
 import { withPullGuard } from '../database/syncMeta';
 import {
   COMPLETE_ADAPTERS,
   SYNC_SETTINGS_KEYS,
+  type Field,
   type SyncTableAdapter,
 } from './serialize';
-import { getSupabaseUserId, SyncAuthError } from './supabase';
-import { isRemoteNewer } from './time';
+import { getSupabaseUserId, SyncAuthError, type CoconutClient } from './supabase';
+import { isRemoteNewer, toMillis } from './time';
+
+const PULL_PAGE_SIZE = 500;
+const REPAIR_CHUNK_SIZE = 100;
+
+const PARENT_TABLE_BY_FK_REMOTE_FIELD: Record<string, string> = {
+  budget_uuid: 'budgets',
+  funded_budget_uuid: 'budgets',
+  fixed_expense_uuid: 'fixed_expenses',
+};
 
 function toBindValue(value: unknown): SQLiteBindValue {
   if (value === null || value === undefined) {
@@ -45,7 +54,7 @@ function pullFkResolver(maps: FkMaps) {
     if (parentUuid === null || parentUuid === undefined) {
       return null;
     }
-    if (remoteField === 'budget_uuid') {
+    if (remoteField === 'budget_uuid' || remoteField === 'funded_budget_uuid') {
       return maps.budgetIdByUuid.get(parentUuid) ?? null;
     }
     if (remoteField === 'fixed_expense_uuid') {
@@ -60,7 +69,7 @@ function pullFkResolver(maps: FkMaps) {
 // remote ON DELETE SET NULL semantics) instead of being dropped permanently by
 // the incremental watermark. NOT NULL FK children keep skipping: an instance
 // without its parent is meaningless and a NULL would violate the column.
-const NULLABLE_FK_LOCAL_COLUMNS = new Set<string>(['budget_id']);
+const NULLABLE_FK_LOCAL_COLUMNS = new Set<string>(['budget_id', 'funded_budget_id']);
 
 function hasUnresolvedFk(
   adapter: SyncTableAdapter,
@@ -122,15 +131,62 @@ function captureInsertedParent(maps: FkMaps, adapter: SyncTableAdapter, values: 
   }
 }
 
+async function fetchAndApplyParent(
+  db: SQLiteDatabase,
+  client: CoconutClient,
+  field: Field,
+  parentUuid: string,
+  maps: FkMaps
+): Promise<void> {
+  const parentTable = PARENT_TABLE_BY_FK_REMOTE_FIELD[field.remote];
+  if (!parentTable) {
+    return;
+  }
+  const parentAdapter = COMPLETE_ADAPTERS.find(
+    (adapter) => adapter.localTable === parentTable
+  );
+  if (!parentAdapter) {
+    return;
+  }
+  // The parent may be older than the incremental watermark (or have been written
+  // by a device with a slightly behind clock). Fetch it directly by uuid instead
+  // of leaving the child with a NULL FK that no later pull would ever repair.
+  const { data, error } = await client
+    .from(parentAdapter.remoteTable)
+    .select('*')
+    .eq('uuid', parentUuid)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Pull lookup failed for ${parentAdapter.remoteTable}: ${error.message}`);
+  }
+  if (data) {
+    await applyRemoteRow(db, parentAdapter, data as Record<string, unknown>, maps, client);
+  }
+}
+
 async function applyRemoteRow(
   db: SQLiteDatabase,
   adapter: SyncTableAdapter,
   remote: Record<string, unknown>,
-  maps: FkMaps
+  maps: FkMaps,
+  client: CoconutClient
 ): Promise<void> {
   const uuid = (remote.uuid as string) ?? '';
   const remoteUpdatedAt = (remote.updated_at as string | null) ?? null;
-  const values: Record<string, unknown> = adapter.fromRemote(remote, pullFkResolver(maps));
+  let values: Record<string, unknown> = adapter.fromRemote(remote, pullFkResolver(maps));
+  values.updated_at = remoteUpdatedAt;
+
+  for (const field of adapter.fields) {
+    if (!field.fk) {
+      continue;
+    }
+    const parentUuid = remote[field.remote] as string | null | undefined;
+    if (parentUuid == null || values[field.local] != null) {
+      continue;
+    }
+    await fetchAndApplyParent(db, client, field, parentUuid, maps);
+  }
+  values = adapter.fromRemote(remote, pullFkResolver(maps));
   values.updated_at = remoteUpdatedAt;
 
   if (hasUnresolvedFk(adapter, remote, values)) {
@@ -196,59 +252,86 @@ async function applyRemoteRow(
 }
 
 async function fetchRemoteRows(
-  client: SupabaseClient,
+  client: CoconutClient,
   remoteTable: string,
   since: string
 ): Promise<Record<string, unknown>[]> {
-  const { data, error } = await client
-    .from(remoteTable)
-    .select('*')
-    .gt('updated_at', since)
-    .order('updated_at', { ascending: true });
-  if (error) {
-    throw new Error(`Pull failed for ${remoteTable}: ${error.message}`);
+  const rows: Record<string, unknown>[] = [];
+  let offset = 0;
+  // PostgREST caps a response at a server-configured row limit, so an
+  // unpaginated pull silently truncates large datasets. Walk pages until a short
+  // page arrives; uuid is only a tie-breaker so pagination is stable when many
+  // rows share the same timestamp.
+  for (;;) {
+    const { data, error } = await client
+      .from(remoteTable)
+      .select('*')
+      .gt('updated_at', since)
+      .order('updated_at', { ascending: true })
+      .order('uuid', { ascending: true })
+      .range(offset, offset + PULL_PAGE_SIZE - 1);
+    if (error) {
+      throw new Error(`Pull failed for ${remoteTable}: ${error.message}`);
+    }
+    const page = (data ?? []) as Record<string, unknown>[];
+    rows.push(...page);
+    if (page.length < PULL_PAGE_SIZE) {
+      break;
+    }
+    offset += PULL_PAGE_SIZE;
   }
-  return (data ?? []) as Record<string, unknown>[];
+  return rows;
 }
 
 async function applyRemoteTombstones(
   db: SQLiteDatabase,
-  client: SupabaseClient,
+  client: CoconutClient,
   since: string
 ): Promise<number> {
-  const { data, error } = await client
-    .from('sync_tombstones')
-    .select('table_name, row_key')
-    .gt('deleted_at', since);
-  if (error) {
-    throw new Error(`Pull of tombstones failed: ${error.message}`);
-  }
   const adapterByTable = new Map(COMPLETE_ADAPTERS.map((a) => [a.localTable, a]));
   let applied = 0;
-  for (const tomb of data ?? []) {
-    const adapter = adapterByTable.get(tomb.table_name as string);
-    if (!adapter) {
-      continue;
+  let offset = 0;
+  for (;;) {
+    const { data, error } = await client
+      .from('sync_tombstones')
+      .select('table_name, row_key')
+      .gt('deleted_at', since)
+      .order('deleted_at', { ascending: true })
+      .order('row_key', { ascending: true })
+      .range(offset, offset + PULL_PAGE_SIZE - 1);
+    if (error) {
+      throw new Error(`Pull of tombstones failed: ${error.message}`);
     }
-    if (adapter.identityColumn === 'month_key') {
-      await db.runAsync('DELETE FROM months WHERE month_key = ?', [tomb.row_key]);
-    } else {
-      await db.runAsync(`DELETE FROM ${adapter.localTable} WHERE uuid = ?`, [
+    const page = data ?? [];
+    for (const tomb of page) {
+      const adapter = adapterByTable.get(tomb.table_name as string);
+      if (!adapter) {
+        continue;
+      }
+      if (adapter.identityColumn === 'month_key') {
+        await db.runAsync('DELETE FROM months WHERE month_key = ?', [tomb.row_key]);
+      } else {
+        await db.runAsync(`DELETE FROM ${adapter.localTable} WHERE uuid = ?`, [
+          tomb.row_key,
+        ]);
+      }
+      await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
+        tomb.table_name,
         tomb.row_key,
       ]);
+      applied += 1;
     }
-    await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
-      tomb.table_name,
-      tomb.row_key,
-    ]);
-    applied += 1;
+    if (page.length < PULL_PAGE_SIZE) {
+      break;
+    }
+    offset += PULL_PAGE_SIZE;
   }
   return applied;
 }
 
 export async function pullSettings(
   db: SQLiteDatabase,
-  client: SupabaseClient,
+  client: CoconutClient,
   since: string,
   keys: readonly string[] = SYNC_SETTINGS_KEYS
 ): Promise<number> {
@@ -282,6 +365,72 @@ export async function pullSettings(
   return applied;
 }
 
+async function repairNullableFks(
+  db: SQLiteDatabase,
+  client: CoconutClient,
+  maps: FkMaps
+): Promise<void> {
+  // A child pulled before its parent existed locally used to keep NULL forever:
+  // the incremental watermark never fetched it again and an equal timestamp is
+  // not "newer". Re-check every locally NULL nullable FK against the remote row
+  // (the remote is the only place the original uuid still survives) and restore
+  // it when the remote copy is at least as new as the local one.
+  for (const adapter of COMPLETE_ADAPTERS) {
+    for (const field of adapter.fields) {
+      if (!field.fk || !NULLABLE_FK_LOCAL_COLUMNS.has(field.local)) {
+        continue;
+      }
+      const locals = await db.getAllAsync<{ uuid: string; updated_at: string | null }>(
+        `SELECT uuid, updated_at FROM ${adapter.localTable}
+          WHERE uuid IS NOT NULL AND ${field.local} IS NULL`
+      );
+      if (locals.length === 0) {
+        continue;
+      }
+      const localByUuid = new Map(locals.map((row) => [row.uuid, row]));
+      for (let index = 0; index < locals.length; index += REPAIR_CHUNK_SIZE) {
+        const chunk = locals
+          .slice(index, index + REPAIR_CHUNK_SIZE)
+          .map((row) => row.uuid);
+        const { data, error } = await client
+          .from(adapter.remoteTable)
+          .select('*')
+          .in('uuid', chunk);
+        if (error) {
+          throw new Error(
+            `FK repair lookup failed for ${adapter.remoteTable}: ${error.message}`
+          );
+        }
+        for (const remoteRow of data ?? []) {
+          const remoteValue = remoteRow[field.remote] as string | null;
+          if (remoteValue == null) {
+            continue;
+          }
+          const local = localByUuid.get(remoteRow.uuid as string);
+          if (
+            !local ||
+            toMillis(remoteRow.updated_at as string | null) < toMillis(local.updated_at)
+          ) {
+            continue;
+          }
+          let localId = pullFkResolver(maps)(field.remote, remoteValue);
+          if (localId == null) {
+            await fetchAndApplyParent(db, client, field, remoteValue, maps);
+            localId = pullFkResolver(maps)(field.remote, remoteValue);
+          }
+          if (localId == null) {
+            continue;
+          }
+          await db.runAsync(
+            `UPDATE ${adapter.localTable} SET ${field.local} = ? WHERE uuid = ?`,
+            [localId, remoteRow.uuid as string]
+          );
+        }
+      }
+    }
+  }
+}
+
 export interface PullResult {
   pulled: number;
   tombstones: number;
@@ -289,7 +438,7 @@ export interface PullResult {
 }
 
 export async function pullChanges(
-  client: SupabaseClient,
+  client: CoconutClient,
   db: SQLiteDatabase,
   since: string
 ): Promise<PullResult> {
@@ -309,12 +458,13 @@ export async function pullChanges(
     for (const adapter of COMPLETE_ADAPTERS) {
       const remoteRows = await fetchRemoteRows(client, adapter.remoteTable, since);
       for (const remoteRow of remoteRows) {
-        await applyRemoteRow(db, adapter, remoteRow, maps);
+        await applyRemoteRow(db, adapter, remoteRow, maps, client);
         pulled += 1;
       }
     }
 
     settingsPulled = await pullSettings(db, client, since);
+    await repairNullableFks(db, client, maps);
   });
 
   return { pulled, tombstones, settingsPulled };

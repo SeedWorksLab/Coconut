@@ -8,9 +8,17 @@ import { shortMonthLabel } from '../../utils/date';
 import { LoadingScreen } from '../../components/loading-screen';
 import { AmountInput } from '../../components/amount-input';
 import { AppDialog } from '../../components/app-dialog';
+import { useI18n, type TranslationKey } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import { FadeIn } from '../../components/fade-in';
 import { DragHandle, ReorderableList } from '../../components/reorderable-list';
+
+const STRATEGY_LABEL_KEYS: Record<string, TranslationKey> = {
+  manual: 'fixed.manual',
+  'last-month': 'fixed.lastMonth',
+  average: 'fixed.recentAverage',
+  'history-average': 'fixed.allHistory',
+};
 
 export default function FixedExpensesScreen() {
   const router = useRouter();
@@ -29,6 +37,7 @@ export default function FixedExpensesScreen() {
   const [actualError, setActualError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const theme = useAppTheme();
+  const { t } = useI18n();
 
   if (!ready) {
     return <LoadingScreen />;
@@ -49,8 +58,8 @@ export default function FixedExpensesScreen() {
           <>
             <View style={styles.header}>
               <List.Item
-                title="Current month"
-                description="As planned this month"
+                title={t('planning.currentMonth')}
+                description={t('planning.asPlannedThisMonth')}
                 right={() => (
                   <List.Icon icon={allFixedExpenses.length > 0 ? 'check-circle-outline' : 'close-circle-outline'} />
                 )}
@@ -59,8 +68,10 @@ export default function FixedExpensesScreen() {
             {statuses.map((status) => (
               <FadeIn key={status.instance.id}>
                 <List.Item
-                  title={status.expense?.name ?? 'Removed expense'}
-                  description={`Planned: ${formatCents(status.instance.expectedAmountCents, symbol)}`}
+                  title={status.expense?.name ?? t('planning.removedExpense')}
+                  description={t('planning.plannedAmount', {
+                    amount: formatCents(status.instance.expectedAmountCents, symbol),
+                  })}
                   right={(props) => (
                     <PaperText {...props} style={styles.rowRight}>
                       {status.instance.actualAmountCents === null
@@ -77,12 +88,12 @@ export default function FixedExpensesScreen() {
               </FadeIn>
             ))}
             {statuses.length > 0 && <Divider />}
-            <List.Subheader>Definitions</List.Subheader>
+            <List.Subheader>{t('planning.definitions')}</List.Subheader>
           </>
         }
         ListEmptyComponent={
           <PaperText variant="bodyMedium" style={styles.empty}>
-            No fixed expenses yet. Add one to plan recurring bills.
+            {t('planning.noFixedExpenses')}
           </PaperText>
         }
         renderRow={(item, { isDragged, handleProps }) => (
@@ -101,14 +112,16 @@ export default function FixedExpensesScreen() {
                 : null,
             ]}
           >
-            <DragHandle isDragged={isDragged} handleProps={handleProps} label={`Reorder ${item.name}`} />
+            <DragHandle isDragged={isDragged} handleProps={handleProps} label={t('planning.reorder', { name: item.name })} />
             <List.Item
               title={item.name}
               titleNumberOfLines={1}
               description={
                 item.kind === 'fixed'
-                  ? `${formatCents(item.expectedAmountCents, symbol)} · fixed`
-                  : `${formatCents(item.expectedAmountCents, symbol)} · estimated from ${item.estimationStrategy.replace('-', ' ')}`
+                  ? `${formatCents(item.expectedAmountCents, symbol)}${t('planning.fixedSuffix')}`
+                  : `${formatCents(item.expectedAmountCents, symbol)}${t('planning.estimatedFrom', {
+                      strategy: t(STRATEGY_LABEL_KEYS[item.estimationStrategy] ?? 'fixed.manual'),
+                    })}`
               }
               descriptionNumberOfLines={2}
               right={(props) => (
@@ -127,29 +140,33 @@ export default function FixedExpensesScreen() {
       {statuses.length > 0 && (
         <Portal>
           <AppDialog visible={actualId !== null} onDismiss={() => setActualId(null)}>
-            <AppDialog.Title>Actual charge</AppDialog.Title>
+            <AppDialog.Title>{t('planning.actualCharge')}</AppDialog.Title>
             <AppDialog.Content>
               <AmountInput
-                label={targeted?.expense?.name ?? 'Amount'}
+                label={targeted?.expense?.name ?? t('form.amount')}
                 value={actualDraft}
                 onChange={setActualDraft}
                 prefix={symbol}
                 error={actualError}
               />
               <PaperText variant="bodySmall" style={styles.dialogHint}>
-                Leave empty to keep the planned estimate for {targeted ? shortMonthLabel(targeted.instance.monthKey) : 'this month'}.
+                {t('planning.keepEstimate', {
+                  month: targeted
+                    ? shortMonthLabel(targeted.instance.monthKey)
+                    : t('planning.thisMonth'),
+                })}
               </PaperText>
             </AppDialog.Content>
             <AppDialog.Actions>
-              <List.Item title="Cancel" onPress={() => setActualId(null)} />
+              <List.Item title={t('common.cancel')} onPress={() => setActualId(null)} />
               <List.Item
-                title="Save"
+                title={t('common.save')}
                 onPress={async () => {
                   if (actualId === null) {
                     return;
                   }
                   if (actualDraft === null || actualDraft <= 0) {
-                    setActualError('Enter a valid amount.');
+                    setActualError(t('form.enterValidAmount'));
                     return;
                   }
                   setSaving(true);
@@ -169,17 +186,16 @@ export default function FixedExpensesScreen() {
       {deleteId !== null && (
         <Portal>
           <AppDialog visible onDismiss={() => setDeleteId(null)}>
-            <AppDialog.Title>Delete fixed expense?</AppDialog.Title>
+            <AppDialog.Title>{t('planning.deleteFixedTitle')}</AppDialog.Title>
             <AppDialog.Content>
               <PaperText variant="bodyMedium">
-                This stops the expense from being added to future months. This month and past months keep
-                their recorded amounts.
+                {t('planning.deleteFixedBody')}
               </PaperText>
             </AppDialog.Content>
             <AppDialog.Actions>
-              <List.Item title="Cancel" onPress={() => setDeleteId(null)} />
+              <List.Item title={t('common.cancel')} onPress={() => setDeleteId(null)} />
               <List.Item
-                title="Delete"
+                title={t('common.delete')}
                 titleStyle={{ color: theme.semantic.delete }}
                 onPress={async () => {
                   if (deleteId === null) {
@@ -195,7 +211,7 @@ export default function FixedExpensesScreen() {
       )}
       <FAB
         icon="plus"
-        label="Add"
+        label={t('common.add')}
         style={styles.fab}
         onPress={() => router.push('/fixed-expense/new')}
       />

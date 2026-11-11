@@ -10,6 +10,7 @@ import { DAYJS_STORE_DATE_FORMAT, monthLabel } from '../utils/date';
 import dayjs from 'dayjs';
 import type { TransactionInput } from '../database/transactions';
 import type { BudgetWithStatus } from '../data/DataProvider';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
 import {
   activeMonthDateWindow,
@@ -71,6 +72,7 @@ export function TransactionForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const theme = useAppTheme();
+  const { t } = useI18n();
   const dateWindow = activeMonthDateWindow(activeMonthKey);
 
   useEffect(() => {
@@ -96,16 +98,16 @@ export function TransactionForm({
   const handleSubmit = async () => {
     setError(null);
     if (amount === null || amount <= 0) {
-      setError('Enter a valid amount.');
+      setError(t('form.enterValidAmount'));
       return;
     }
     if (merchant.trim().length === 0) {
-      setError('Enter a merchant or description.');
+      setError(t('form.enterMerchant'));
       return;
     }
     const dateCheck = validateDateInActiveMonth(date, activeMonthKey, 'A transaction');
     if (!dateCheck.ok) {
-      setError(dateCheck.error);
+      setError(t('form.dateOutsideActiveMonth', { month: monthLabel(activeMonthKey) }));
       return;
     }
     setSubmitting(true);
@@ -118,12 +120,8 @@ export function TransactionForm({
         note: note.trim().length > 0 ? note.trim() : null,
         attachment,
       });
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : 'The transaction could not be saved.'
-      );
+    } catch {
+      setError(t('form.saveError'));
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +130,7 @@ export function TransactionForm({
   return (
     <View>
       <AmountInput
-        label="Amount"
+        label={t('form.amount')}
         value={amount}
         onChange={setAmount}
         autoFocus={!initial}
@@ -140,17 +138,17 @@ export function TransactionForm({
         prefix={symbol}
       />
       <TextInput
-        label="Merchant"
+        label={t('form.merchant')}
         mode="outlined"
         value={merchant}
         onChangeText={setMerchant}
-        placeholder="Where did you spend?"
+        placeholder={t('form.merchantPlaceholder')}
         style={styles.field}
       />
       {budgetSuggestions.length > 0 ? (
         <View style={styles.suggestionRow}>
           <Text variant="labelSmall" style={styles.suggestionLabel}>
-            Used before
+            {t('form.usedBefore')}
           </Text>
           {budgetSuggestions.map((budget) => (
             <Chip
@@ -173,7 +171,7 @@ export function TransactionForm({
         editedTransaction={initial ?? null}
       />
       <TextInput
-        label="Note"
+        label={t('form.note')}
         mode="outlined"
         value={note}
         onChangeText={setNote}
@@ -187,10 +185,10 @@ export function TransactionForm({
         maximumDate={dateWindow.maximumDate}
       />
       <Text variant="labelSmall" style={[styles.monthHint, { color: theme.text.secondary }]}>
-        {`Dates are limited to ${monthLabel(activeMonthKey)}.`}
+        {t('form.datesLimited', { month: monthLabel(activeMonthKey) })}
       </Text>
       <Button mode="contained" onPress={handleSubmit} loading={submitting} disabled={submitting} style={styles.submit}>
-        Save
+        {t('common.save')}
       </Button>
       {error ? (
         <Text variant="bodySmall" style={[styles.error, { color: theme.colors.error }]}>

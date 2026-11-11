@@ -64,7 +64,7 @@ describe('resolveEqualSplit', () => {
   it('requires at least one member', () => {
     expect(resolveEqualSplit(1000, [])).toEqual({
       ok: false,
-      error: 'Select at least one member to split with.',
+      error: 'selectMember',
     });
   });
 
@@ -97,12 +97,12 @@ describe('resolveExactSplit', () => {
       { memberId: 1, amountCents: 4000 },
       { memberId: 2, amountCents: 5000 },
     ]);
-    expect(result).toEqual({ ok: false, error: 'Split amounts must add up to the total.' });
+    expect(result).toEqual({ ok: false, error: 'splitTotal' });
   });
 
   it('rejects negative amounts', () => {
     const result = resolveExactSplit(1000, [{ memberId: 1, amountCents: -100 }]);
-    expect(result).toEqual({ ok: false, error: 'Amounts cannot be negative.' });
+    expect(result).toEqual({ ok: false, error: 'negativeAmount' });
   });
 });
 
@@ -124,7 +124,7 @@ describe('resolvePercentageSplit', () => {
       { memberId: 1, basisPoints: 5000 },
       { memberId: 2, basisPoints: 4000 },
     ]);
-    expect(result).toEqual({ ok: false, error: 'Percentages must add up to 100%.' });
+    expect(result).toEqual({ ok: false, error: 'percentTotal' });
   });
 });
 
@@ -132,7 +132,7 @@ describe('resolveSplit', () => {
   it('rejects non-positive totals', () => {
     expect(resolveSplit('equal', 0, [{ memberId: 1 }])).toEqual({
       ok: false,
-      error: 'Total must be greater than zero.',
+      error: 'totalPositive',
     });
   });
 
@@ -256,7 +256,7 @@ describe('fillRemainingSplit', () => {
       ])
     ).toEqual({
       ok: false,
-      error: 'Add rest is only available when exactly one member is left empty.',
+      error: 'addRestUnavailable',
     });
   });
 
@@ -269,14 +269,14 @@ describe('fillRemainingSplit', () => {
       ])
     ).toEqual({
       ok: false,
-      error: 'Add rest is only available when exactly one member is left empty.',
+      error: 'addRestUnavailable',
     });
   });
 
   it('rejects the equal method', () => {
     expect(fillRemainingSplit('equal', 10000, [{ memberId: 1 }])).toEqual({
       ok: false,
-      error: 'Add rest is only available when exactly one member is left empty.',
+      error: 'addRestUnavailable',
     });
   });
 });
@@ -303,21 +303,21 @@ describe('validateExpense', () => {
   it('rejects a missing description', () => {
     expect(validateExpense({ ...base, description: '  ' })).toEqual({
       ok: false,
-      error: 'Description is required.',
+      error: 'descriptionRequired',
     });
   });
 
   it('rejects a payer outside the split', () => {
     expect(validateExpense({ ...base, paidByMemberId: 9 })).toEqual({
       ok: false,
-      error: 'Select who paid.',
+      error: 'selectPayer',
     });
   });
 
   it('rejects splits that do not sum to the total', () => {
     expect(
       validateExpense({ ...base, splits: [{ memberId: 1, amountCents: 1000 }] })
-    ).toEqual({ ok: false, error: 'Split amounts must add up to the total.' });
+    ).toEqual({ ok: false, error: 'splitTotal' });
   });
 
   it('rejects unknown members', () => {
@@ -329,20 +329,20 @@ describe('validateExpense', () => {
           { memberId: 9, amountCents: 5000 },
         ],
       })
-    ).toEqual({ ok: false, error: 'Split references an unknown member.' });
+    ).toEqual({ ok: false, error: 'unknownMember' });
   });
 
   it('rejects a date before the period start', () => {
     expect(validateExpense({ ...base, date: '2026-09-19' })).toEqual({
       ok: false,
-      error: 'The date cannot be before the period start.',
+      error: 'dateBeforePeriod',
     });
   });
 
   it('rejects a date in the future', () => {
     expect(validateExpense({ ...base, date: '2026-10-01' })).toEqual({
       ok: false,
-      error: 'The date cannot be in the future.',
+      error: 'dateFuture',
     });
   });
 

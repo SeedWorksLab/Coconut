@@ -4,9 +4,11 @@ import { Appbar } from 'react-native-paper';
 import { useAppData } from '../../data/DataProvider';
 import { SubscriptionForm } from '../../components/subscription-form';
 import { LoadingScreen } from '../../components/loading-screen';
+import { useI18n } from '../../i18n';
 
 export default function NewSubscriptionScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const { ready, settings, addSubscription } = useAppData();
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,7 +20,7 @@ export default function NewSubscriptionScreen() {
     <>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="New subscription" />
+        <Appbar.Content title={t('route.newSubscription')} />
       </Appbar.Header>
       <SubscriptionForm
         initialData={null}

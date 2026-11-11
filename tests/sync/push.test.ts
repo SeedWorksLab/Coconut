@@ -91,6 +91,17 @@ const REMOTE_COLUMNS: Record<string, string[]> = {
     'active',
     'updated_at',
   ],
+  month_budget_plan_events: [
+    'uuid',
+    'user_id',
+    'month_key',
+    'kind',
+    'budget_uuid',
+    'previous_amount_cents',
+    'new_amount_cents',
+    'funded_budget_uuid',
+    'updated_at',
+  ],
   income: [
     'uuid',
     'user_id',
@@ -374,6 +385,39 @@ describe('pushChanges full-sync seeding and healing', () => {
     ).toBeUndefined();
   });
 
+  it('does not push an equal-timestamp local row over a good remote FK', async () => {
+    const db = freshDb();
+    insertMonth(db, '2026-09');
+    insertWithSuppressedTriggers(
+      db,
+      `INSERT INTO transactions (month_key, date, amount_cents, budget_id, merchant)
+       VALUES ('2026-09', '2026-09-18', 1200, NULL, 'Local')`
+    );
+    insertWithSuppressedTriggers(
+      db,
+      `UPDATE transactions SET uuid = 'tx-1', updated_at = '2026-09-18T00:00:00.000Z'
+       WHERE id = 1`
+    );
+    const client = new FakeClient();
+    client.tables.get('transactions')!.set('tx-1', {
+      uuid: 'tx-1',
+      updated_at: '2026-09-18T00:00:00.000Z',
+      user_id: 'user-1',
+      budget_uuid: 'budget-1',
+      merchant: 'Remote',
+    });
+
+    await pushAll(db, client);
+
+    const remote = client.tables.get('transactions')?.get('tx-1');
+    expect(remote?.budget_uuid).toBe('budget-1');
+    expect(
+      client.upsertLog.find(
+        (entry) => entry.table === 'transactions' && entry.row.uuid === 'tx-1'
+      )
+    ).toBeUndefined();
+  });
+
   it('uploads budgets before tagged transactions so the remote FK is satisfied', async () => {    const db = freshDb();
     insertMonth(db, '2026-09');
     const budgetId = insertBudget(db, 'Groceries');
@@ -427,6 +471,11 @@ describe('pushChanges full-sync seeding and healing', () => {
        VALUES ('2026-09', ${budgetId}, 50000)`
     );
     db.exec(
+      `INSERT INTO month_budget_plan_events
+         (month_key, kind, budget_id, previous_amount_cents, new_amount_cents, funded_budget_id)
+       VALUES ('2026-09', 'draw', NULL, 0, 5000, ${budgetId})`
+    );
+    db.exec(
       `INSERT INTO income (month_key, date, amount_cents, description)
        VALUES ('2026-09', '2026-09-01', 200000, 'Salary')`
     );
@@ -446,12 +495,22 @@ describe('pushChanges full-sync seeding and healing', () => {
       'yearly_subscriptions',
       'month_fixed_expenses',
       'month_budgets',
+      'month_budget_plan_events',
       'income',
       'reserve_transfers',
       'transactions',
     ]) {
       expect(client.tables.get(table)?.size ?? 0).toBeGreaterThan(0);
     }
+
+    const localBudget = db
+      .prepare('SELECT uuid FROM budgets WHERE id = ?')
+      .get(budgetId) as { uuid: string };
+    const planEvent = client
+      .tables.get('month_budget_plan_events')
+      ?.values()
+      .next().value as PostgrestRow;
+    expect(planEvent.funded_budget_uuid).toBe(localBudget.uuid);
   });
 
   it('pushes the username setting', async () => {

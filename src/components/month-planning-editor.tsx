@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Button, Card, List, Portal, Switch, Text } from 'react-native-paper';
 
 import { useAppData } from '../data/DataProvider';
+import { useI18n } from '../i18n';
 import {
   getClosedMonthRecords,
   getMonthPlanningInputs,
@@ -67,6 +68,7 @@ export function MonthPlanningEditor({
 }: MonthPlanningEditorProps) {
   const router = useRouter();
   const theme = useAppTheme();
+  const { t } = useI18n();
   const { settings, budgets } = useAppData();
 
   const [inputs, setInputs] = useState<MonthPlanningInputs | null>(null);
@@ -111,13 +113,13 @@ export function MonthPlanningEditor({
         );
         setLoadError(null);
       } catch {
-        setLoadError('The month could not be loaded. Nothing was changed.');
+        setLoadError(t('planEditor.loadError'));
       }
     })();
     return () => {
       active = false;
     };
-  }, [monthKey, attempt]);
+  }, [monthKey, attempt, t]);
 
   // A draw can never be more than the reserve holds, however it is typed. A
   // negative draw is the user setting extra aside, which the reserve can take
@@ -197,7 +199,7 @@ export function MonthPlanningEditor({
             </Text>
           </Card.Content>
           <Card.Actions>
-            <Button onPress={() => setAttempt((current) => current + 1)}>Try again</Button>
+            <Button onPress={() => setAttempt((current) => current + 1)}>{t('common.tryAgain')}</Button>
           </Card.Actions>
         </Card>
       </View>
@@ -213,7 +215,7 @@ export function MonthPlanningEditor({
     try {
       await onCommit({ plans, active, drawCents });
     } catch {
-      setSaveError('Nothing was changed.');
+      setSaveError(t('planEditor.saveError'));
     } finally {
       setSaving(false);
     }
@@ -226,26 +228,28 @@ export function MonthPlanningEditor({
     >
       <Card mode="elevated" style={styles.card}>
         <Card.Title
-          title={mode === 'start' ? 'What you are starting with' : 'Where this month stands'}
+          title={mode === 'start' ? t('planEditor.startingWith') : t('planEditor.whereStands')}
         />
         <Card.Content>
           <List.Item
-            title="Savings reserve"
-            description={`${formatCents(inputs.startingReserveCents, symbol)} carried into this month`}
+            title={t('overview.savingsReserve')}
+            description={t('planEditor.reserveCarried', {
+              amount: formatCents(inputs.startingReserveCents, symbol),
+            })}
             left={(props) => <List.Icon {...props} icon="piggy-bank-outline" />}
           />
           <List.Item
-            title="Allowance"
+            title={t('planEditor.allowance')}
             description={formatCents(plan.allowanceCents, symbol)}
             left={(props) => <List.Icon {...props} icon="cash" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => router.push('/settings')}
           />
           <List.Item
-            title="Average monthly spend"
+            title={t('planEditor.averageSpend')}
             description={
               averageSpendingCents === null
-                ? 'No months closed yet'
+                ? t('planEditor.noClosedMonths')
                 : formatCents(averageSpendingCents, symbol)
             }
             left={(props) => <List.Icon {...props} icon="chart-line" />}
@@ -255,54 +259,54 @@ export function MonthPlanningEditor({
 
       <Card mode="elevated" style={styles.card}>
         <Card.Title
-          title="Draw from the reserve"
-          subtitle="Optional. Planning only, for sizing the plan below."
+          title={t('planEditor.drawTitle')}
+          subtitle={t('planEditor.drawSubtitle')}
         />
         <Card.Content>
           <AmountInput
-            label="Draw this month"
+            label={t('planEditor.drawThisMonth')}
             value={draw}
             onChange={setDraw}
             prefix={symbol}
             allowNegative
             error={
               drawTooLarge
-                ? `You have ${formatCents(inputs.startingReserveCents, symbol)} in the reserve.`
+                ? t('planEditor.drawTooLarge', {
+                    amount: formatCents(inputs.startingReserveCents, symbol),
+                  })
                 : null
             }
           />
           <Text variant="bodySmall" style={styles.hint}>
-            Draw to bring money out of the reserve and plan it this month. Flip the sign to
-            set that amount aside instead, and your plan is sized around what is left.
-            Nothing moves now and nothing is recorded in the reserve. At the end of the
-            month the reserve moves by what you actually spent, which may be no movement
-            at all.
+            {t('planEditor.drawHint')}
           </Text>
         </Card.Content>
       </Card>
 
       <Card mode="elevated" style={styles.card}>
         <Card.Title
-          title="Already committed"
-          subtitle="Deducted before you plan anything."
+          title={t('planEditor.alreadyCommitted')}
+          subtitle={t('planEditor.alreadyCommittedSubtitle')}
         />
         <Card.Content>
           <List.Item
-            title="Fixed expenses"
-            description={`${formatCents(plan.expectedFixedCents, symbol)} expected`}
+            title={t('settings.fixedExpenses')}
+            description={t('planEditor.fixedExpected', {
+              amount: formatCents(plan.expectedFixedCents, symbol),
+            })}
             left={(props) => <List.Icon {...props} icon="home-outline" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => router.push('/planning/fixed-expenses')}
           />
           <List.Item
-            title="Subscriptions"
+            title={t('settings.subscriptions')}
             description={formatCents(plan.subscriptionCents, symbol)}
             left={(props) => <List.Icon {...props} icon="repeat" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => router.push('/planning/subscriptions')}
           />
           <List.Item
-            title="To spread across your budgets"
+            title={t('planEditor.toSpread')}
             description={formatCents(plan.distributableCents, symbol)}
             left={(props) => <List.Icon {...props} icon="wallet-outline" />}
           />
@@ -310,12 +314,13 @@ export function MonthPlanningEditor({
       </Card>
 
       <Card mode="elevated" style={styles.card}>
-        <Card.Title title="Plan your budgets" subtitle="What you expect to spend in each." />
+        <Card.Title title={t('planEditor.planBudgets')} subtitle={t('planEditor.planBudgetsSubtitle')} />
         <Card.Content>
           {inputs.budgets.length === 0 ? (
             <Text variant="bodyMedium" style={styles.hint}>
-              You have no budgets yet. You can {mode === 'start' ? 'start the month' : 'save'}{' '}
-              without them and add them later.
+              {t('planEditor.noBudgets', {
+                action: mode === 'start' ? t('planEditor.noBudgetsStart') : t('planEditor.noBudgetsSave'),
+              })}
             </Text>
           ) : (
             inputs.budgets.map((budget) => {
@@ -326,7 +331,7 @@ export function MonthPlanningEditor({
                 <View key={budget.budgetId} style={styles.budgetRow}>
                   <View style={styles.budgetHeader}>
                     <Text variant="titleSmall" style={styles.budgetTitle}>
-                      {nameOf.get(budget.budgetId) ?? `Budget ${budget.budgetId}`}
+                      {nameOf.get(budget.budgetId) ?? t('planEditor.budgetNumber', { id: budget.budgetId })}
                     </Text>
                     <Switch
                       value={isActive}
@@ -346,7 +351,7 @@ export function MonthPlanningEditor({
                     />
                   </View>
                   <AmountInput
-                    label={isActive ? 'Planned amount' : 'Inactive this month'}
+                    label={isActive ? t('planEditor.plannedAmount') : t('planEditor.inactive')}
                     value={value}
                     onChange={(next) =>
                       setPlans((current) => ({
@@ -358,7 +363,7 @@ export function MonthPlanningEditor({
                     disabled={!isActive}
                     error={
                       isActive && headroom < 0
-                        ? `This month has no room left for it: ${formatCents(headroom, symbol)} short.`
+                        ? t('planEditor.noRoom', { amount: formatCents(headroom, symbol) })
                         : null
                     }
                   />
@@ -367,7 +372,7 @@ export function MonthPlanningEditor({
             })
           )}
           <List.Item
-            title="Manage budgets"
+            title={t('planEditor.manageBudgets')}
             left={(props) => <List.Icon {...props} icon="format-list-bulleted" />}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => router.push('/planning/budgets')}
@@ -385,8 +390,8 @@ export function MonthPlanningEditor({
             ]}
           >
             {plan.overPlannedCents > 0
-              ? `Planned ${formatCents(plan.overPlannedCents, symbol)} more than this month has.`
-              : `${formatCents(plan.remainingCents, symbol)} left unplanned.`}
+              ? t('planEditor.overPlanned', { amount: formatCents(plan.overPlannedCents, symbol) })
+              : t('planEditor.leftUnplanned', { amount: formatCents(plan.remainingCents, symbol) })}
           </Text>
         </Card.Content>
       </Card>
@@ -394,8 +399,8 @@ export function MonthPlanningEditor({
       {mode === 'replan' && (
         <Text variant="bodySmall" style={styles.recorded}>
           {nothingToRecord
-            ? 'Nothing has changed yet, so there is nothing to record.'
-            : 'Saving records what you changed, so the plan this month started from stays answerable.'}
+            ? t('planEditor.nothingChanged')
+            : t('planEditor.savingRecords')}
         </Text>
       )}
 
@@ -411,7 +416,9 @@ export function MonthPlanningEditor({
         loading={saving}
         disabled={blocked || nothingToRecord}
       >
-        {mode === 'start' ? `Start ${monthLabel(monthKey)}` : 'Update the plan'}
+        {mode === 'start'
+          ? t('planning.startMonth', { month: monthLabel(monthKey) })
+          : t('planEditor.updatePlan')}
       </Button>
 
       <Portal>
@@ -419,14 +426,17 @@ export function MonthPlanningEditor({
           visible={pendingActivation !== null}
           onDismiss={() => setPendingActivation(null)}
         >
-          <AppDialog.Title>Activate this budget?</AppDialog.Title>
+          <AppDialog.Title>{t('planEditor.activateTitle')}</AppDialog.Title>
           <AppDialog.Content>
             <Text variant="bodyMedium">
-              {`${nameOf.get(pendingActivation ?? -1) ?? 'This budget'} will become part of ${monthLabel(monthKey)}. Once activated, it cannot be made inactive again this month.`}
+              {t('planEditor.activateBody', {
+                name: nameOf.get(pendingActivation ?? -1) ?? t('planEditor.thisBudget'),
+                month: monthLabel(monthKey),
+              })}
             </Text>
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setPendingActivation(null)}>Cancel</Button>
+            <Button onPress={() => setPendingActivation(null)}>{t('common.cancel')}</Button>
             <Button
               onPress={() => {
                 if (pendingActivation !== null) {
@@ -438,7 +448,7 @@ export function MonthPlanningEditor({
                 setPendingActivation(null);
               }}
             >
-              Activate
+              {t('planEditor.activate')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>

@@ -2,11 +2,14 @@ import 'react-native-url-polyfill/auto';
 
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 
+import { resolveCloudConfig } from '../config/cloud';
 import { getDatabase } from '../database/database';
 import { syncMetaAuthStorage } from '../database/syncMeta';
 import { getSyncState } from '../database/syncState';
 
-let clientPromise: Promise<SupabaseClient> | null = null;
+export type CoconutClient = SupabaseClient<any, any, 'coconut'>;
+
+let clientPromise: Promise<CoconutClient> | null = null;
 
 export class SyncAuthError extends Error {
   constructor(message: string) {
@@ -15,15 +18,16 @@ export class SyncAuthError extends Error {
   }
 }
 
-export async function getClient(): Promise<SupabaseClient> {
+export async function getClient(): Promise<CoconutClient> {
   if (!clientPromise) {
     clientPromise = (async () => {
       const db = await getDatabase();
       const state = await getSyncState(db);
-      if (!state.supabaseUrl || !state.apiKey) {
-        throw new SyncAuthError('Supabase URL and API key must be configured first.');
-      }
-      return createClient(state.supabaseUrl, state.apiKey, {
+      const cloud = resolveCloudConfig(state);
+      return createClient(cloud.supabaseUrl, cloud.apiKey, {
+        db: {
+          schema: 'coconut',
+        },
         auth: {
           storage: syncMetaAuthStorage,
           autoRefreshToken: true,

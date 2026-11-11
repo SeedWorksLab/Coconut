@@ -10,6 +10,7 @@ import type { MonthlyReport } from '../../services/monthly-report-service';
 import { formatCents, formatSignedCents } from '../../utils/currency';
 import { monthLabel } from '../../utils/date';
 import { LoadingScreen } from '../../components/loading-screen';
+import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
 
 function ReportRow({
@@ -44,6 +45,7 @@ export default function MonthlyReportScreen() {
   const { monthKey } = useLocalSearchParams<{ monthKey: string }>();
   const { ready, settings } = useAppData();
   const theme = useAppTheme();
+  const { t } = useI18n();
   const [report, setReport] = useState<MonthlyReport | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -70,7 +72,7 @@ export default function MonthlyReportScreen() {
     return (
       <KeyboardAwareScrollView contentContainerStyle={styles.container}>
         <Text variant="bodyMedium" style={styles.empty}>
-          This month has no report yet. Close the month to generate one.
+          {t('report.empty')}
         </Text>
       </KeyboardAwareScrollView>
     );
@@ -87,23 +89,25 @@ export default function MonthlyReportScreen() {
       </Text>
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
-        <Card.Title title="Summary" />
+        <Card.Title title={t('report.summary')} />
         <Card.Content>
-          <ReportRow label="Monthly allowance" value={formatCents(report.allowanceCents, symbol)} />
-          <ReportRow label="One-off income" value={formatCents(report.incomeCents, symbol)} />
-          <ReportRow label="Total spent" value={formatCents(report.spendingCents, symbol)} />
+          <ReportRow label={t('report.monthlyAllowance')} value={formatCents(report.allowanceCents, symbol)} />
+          <ReportRow label={t('report.oneOffIncome')} value={formatCents(report.incomeCents, symbol)} />
+          <ReportRow label={t('report.totalSpent')} value={formatCents(report.spendingCents, symbol)} />
         </Card.Content>
       </Card>
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
         <Card.Title
-          title="Fixed expenses"
-          subtitle={`${formatCents(report.fixedTotalCents, symbol)} total`}
+          title={t('settings.fixedExpenses')}
+          subtitle={t('report.fixedTotal', {
+            amount: formatCents(report.fixedTotalCents, symbol),
+          })}
         />
         <Card.Content>
           {report.fixedExpenses.length === 0 ? (
             <Text variant="bodyMedium" style={styles.empty}>
-              No fixed expenses.
+              {t('report.noFixed')}
             </Text>
           ) : (
             report.fixedExpenses.map((expense) => (
@@ -112,8 +116,10 @@ export default function MonthlyReportScreen() {
                 title={expense.name}
                 description={
                   expense.actualCents !== null
-                    ? 'Actual'
-                    : `Estimated · expected ${formatCents(expense.expectedCents, symbol)}`
+                    ? t('report.actual')
+                    : t('report.estimatedExpected', {
+                        amount: formatCents(expense.expectedCents, symbol),
+                      })
                 }
                 left={(props) => <List.Icon {...props} icon="calendar-check-outline" />}
                 right={() => (
@@ -127,20 +133,22 @@ export default function MonthlyReportScreen() {
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
         <Card.Title
-          title="Subscriptions"
-          subtitle={`${formatCents(report.subscriptionTotalCents, symbol)} deducted this month`}
+          title={t('settings.subscriptions')}
+          subtitle={t('report.subscriptionsDeducted', {
+            amount: formatCents(report.subscriptionTotalCents, symbol),
+          })}
         />
         <Card.Content>
           {report.subscriptions.length === 0 ? (
             <Text variant="bodyMedium" style={styles.empty}>
-              No monthly subscription deductions.
+              {t('report.noSubscriptions')}
             </Text>
           ) : (
             report.subscriptions.map((subscription) => (
               <List.Item
                 key={subscription.name}
                 title={subscription.name}
-                description="Monthly deduction"
+                description={t('report.monthlyDeduction')}
                 left={(props) => <List.Icon {...props} icon="calendar-refresh-outline" />}
                 right={() => (
                   <Text variant="bodyLarge">{formatCents(subscription.monthlyCents, symbol)}</Text>
@@ -153,13 +161,15 @@ export default function MonthlyReportScreen() {
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
         <Card.Title
-          title="Flexible budgets"
-          subtitle={`${formatCents(report.budgetSpentTotalCents, symbol)} spent`}
+          title={t('report.flexibleBudgets')}
+          subtitle={t('report.amountSpent', {
+            amount: formatCents(report.budgetSpentTotalCents, symbol),
+          })}
         />
         <Card.Content>
           {report.budgets.length === 0 ? (
             <Text variant="bodyMedium" style={styles.empty}>
-              No flexible budgets.
+              {t('report.noBudgets')}
             </Text>
           ) : (
             report.budgets.map((budget) => {
@@ -173,8 +183,8 @@ export default function MonthlyReportScreen() {
                         style={{ color: theme.colors.onSurfaceVariant }}
                       >
                         {budget.spentCents > 0
-                          ? `Inactive · ${formatCents(budget.spentCents, symbol)} spent`
-                          : 'Inactive this month'}
+                          ? t('report.inactiveSpent', { amount: formatCents(budget.spentCents, symbol) })
+                          : t('report.inactiveThisMonth')}
                       </Text>
                     </View>
                   </View>
@@ -192,18 +202,23 @@ export default function MonthlyReportScreen() {
                       }}
                     >
                       {formatCents(budget.spentCents, symbol)} / {formatCents(budget.plannedCents, symbol)}
-                      {over ? ' • over' : ''}
+                      {over ? t('report.over') : ''}
                     </Text>
                   </View>
                   {budget.startingCents !== null && (
                     <Text variant="bodySmall" style={styles.planLine}>
                       {budget.startingCents === budget.plannedCents
-                        ? `Planned at ${formatCents(budget.plannedCents, symbol)}, never adjusted`
-                        : `Started at ${formatCents(budget.startingCents, symbol)} • adjusted to ${formatCents(budget.plannedCents, symbol)}`}
+                        ? t('report.plannedNeverAdjusted', {
+                          amount: formatCents(budget.plannedCents, symbol),
+                        })
+                        : t('report.startedAdjusted', {
+                          start: formatCents(budget.startingCents, symbol),
+                          end: formatCents(budget.plannedCents, symbol),
+                        })}
                     </Text>
                   )}
                   <ReportRow
-                    label={over ? 'Over by' : 'Remaining'}
+                    label={over ? t('report.overBy') : t('report.remaining')}
                     value={over ? formatCents(-budget.remainingCents, symbol) : formatCents(budget.remainingCents, symbol)}
                     tone={over ? 'bad' : undefined}
                   />
@@ -217,16 +232,16 @@ export default function MonthlyReportScreen() {
       {report.endingDrawCents !== null && (
         <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
           <Card.Title
-            title="Planned reserve draw"
-            subtitle="What the month intended to move through the reserve"
+            title={t('report.plannedDraw')}
+            subtitle={t('report.plannedDrawSubtitle')}
           />
           <Card.Content>
             <ReportRow
-              label="Planned at the start"
+              label={t('report.plannedAtStart')}
               value={formatCents(report.initialDrawCents ?? 0, symbol)}
             />
             <ReportRow
-              label="Left planning at"
+              label={t('report.leftPlanningAt')}
               value={formatCents(report.endingDrawCents, symbol)}
             />
           </Card.Content>
@@ -235,7 +250,7 @@ export default function MonthlyReportScreen() {
 
       {report.closingVerdict ? (
         <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
-          <Card.Title title="Month verdict" subtitle="Why it went the way it did" />
+          <Card.Title title={t('report.verdictTitle')} subtitle={t('report.verdictSubtitle')} />
           <Card.Content>
             <Text variant="bodyMedium" style={styles.verdictText}>
               {report.closingVerdict}
@@ -245,19 +260,19 @@ export default function MonthlyReportScreen() {
       ) : null}
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
-        <Card.Title title="Savings reserve" />
+        <Card.Title title={t('report.savingsReserve')} />
         <Card.Content>
           <ReportRow
-            label="Previously on the account"
+            label={t('report.previouslyOnAccount')}
             value={formatCents(report.startingReserveCents, symbol)}
           />
           <ReportRow
-            label={saved ? 'Added at month end' : drawn ? 'Taken at month end' : 'Added at month end'}
+            label={saved || !drawn ? t('report.addedAtMonthEnd') : t('report.takenAtMonthEnd')}
             value={formatSignedCents(report.adjustmentCents, symbol)}
             tone={saved && report.adjustmentCents !== 0 ? 'good' : drawn ? 'bad' : undefined}
           />
           <ReportRow
-            label="Ending reserve"
+            label={t('report.endingReserve')}
             value={
               report.endingReserveCents !== null
                 ? formatCents(report.endingReserveCents, symbol)

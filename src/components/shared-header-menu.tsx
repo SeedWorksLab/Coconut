@@ -11,8 +11,9 @@ import {
 } from 'react-native-paper';
 import dayjs from 'dayjs';
 import type { SharedPeriodReport, SharedSpace, SharedSpaceMember } from '../models';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
-import { sharedMemberName, sharedMemberRoleLabel } from '../utils/shared-members';
+import { sharedMemberName } from '../utils/shared-members';
 
 export interface SharedHeaderMenuProps {
   spaces: SharedSpace[];
@@ -64,6 +65,7 @@ export function SharedHeaderMenu({
   currentMemberId,
 }: SharedHeaderMenuProps) {
   const theme = useAppTheme();
+  const { t } = useI18n();
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState<MenuMode>('spaces');
 
@@ -86,7 +88,7 @@ export function SharedHeaderMenu({
           icon="menu"
           iconColor={theme.colors.onSurface}
           onPress={openMenu}
-          accessibilityLabel="Shared space menu"
+          accessibilityLabel={t('menu.accessibility')}
         />
       }
     >
@@ -94,7 +96,7 @@ export function SharedHeaderMenu({
         <>
           <Menu.Item
             leadingIcon="plus"
-            title="New shared space"
+            title={t('menu.newSpace')}
             disabled={busy}
             onPress={() => {
               closeMenu();
@@ -104,7 +106,7 @@ export function SharedHeaderMenu({
           {spaces.length > 0 ? <Divider /> : null}
           {spaces.length === 0 ? (
             <PaperText variant="bodySmall" style={styles.hint}>
-              No shared spaces yet.
+              {t('menu.noSpaces')}
             </PaperText>
           ) : (
             spaces.map((space) => (
@@ -123,7 +125,7 @@ export function SharedHeaderMenu({
             <>
               <Divider />
               <PaperText variant="labelLarge" style={styles.sectionLabel}>
-                Pending invites
+                {t('menu.pendingInvites')}
               </PaperText>
               {pendingInvites.map((invite) => (
                 <List.Item
@@ -138,7 +140,7 @@ export function SharedHeaderMenu({
                       disabled={busy}
                       onPress={() => onAcceptInvite(invite)}
                     >
-                      Accept
+                      {t('menu.accept')}
                     </Button>
                   )}
                 />
@@ -150,7 +152,7 @@ export function SharedHeaderMenu({
         <>
           <Menu.Item
             leadingIcon="arrow-left"
-            title="All spaces"
+            title={t('menu.allSpaces')}
             onPress={() => setMode('spaces')}
           />
           <Divider />
@@ -159,7 +161,7 @@ export function SharedHeaderMenu({
           </PaperText>
           <Menu.Item
             leadingIcon="scale-balance"
-            title="Balances"
+            title={t('menu.balances')}
             onPress={() => {
               closeMenu();
               onOpenBalances();
@@ -168,7 +170,7 @@ export function SharedHeaderMenu({
           {canInvite ? (
             <Menu.Item
               leadingIcon="account-plus-outline"
-              title="Invite by email"
+              title={t('menu.invite')}
               disabled={busy}
               onPress={() => {
                 closeMenu();
@@ -179,7 +181,7 @@ export function SharedHeaderMenu({
           {canManage ? (
             <Menu.Item
               leadingIcon="pencil-outline"
-              title="Rename space"
+              title={t('menu.rename')}
               disabled={busy}
               onPress={() => {
                 closeMenu();
@@ -189,7 +191,7 @@ export function SharedHeaderMenu({
           ) : null}
           <Divider />
           <PaperText variant="labelLarge" style={styles.sectionLabel}>
-            Members
+            {t('menu.members')}
           </PaperText>
           {members.map((member) => {
             const isSelf = currentMemberId !== null && member.id === currentMemberId;
@@ -204,7 +206,7 @@ export function SharedHeaderMenu({
                         closeMenu();
                         onLeaveSpace();
                       }}
-                      accessibilityLabel="Leave this shared space"
+                      accessibilityLabel={t('menu.leave')}
                     />
                   )
                 : undefined
@@ -217,7 +219,7 @@ export function SharedHeaderMenu({
                         closeMenu();
                         onRemoveMember(member);
                       }}
-                      accessibilityLabel={`Remove ${sharedMemberName(member)}`}
+                      accessibilityLabel={t('menu.removeMember', { name: sharedMemberName(member) })}
                     />
                   )
                 : undefined;
@@ -225,7 +227,13 @@ export function SharedHeaderMenu({
               <List.Item
                 key={member.id}
                 title={sharedMemberName(member)}
-                description={sharedMemberRoleLabel(member)}
+                description={
+                  member.role === 'owner'
+                    ? t('shared.roleOwner')
+                    : member.status === 'pending'
+                      ? t('shared.rolePending')
+                      : t('shared.roleMember')
+                }
                 left={(props) => (
                   <List.Icon
                     {...props}
@@ -240,7 +248,7 @@ export function SharedHeaderMenu({
             <>
               <Divider />
               <PaperText variant="labelLarge" style={styles.sectionLabel}>
-                Closed periods
+                {t('menu.closedPeriods')}
               </PaperText>
               {reports.map((entry) => (
                 <Menu.Item
@@ -264,7 +272,7 @@ export function SharedHeaderMenu({
                 leadingIcon={({ color, size }) => (
                   <Icon source="trash-can-outline" size={size} color={theme.semantic.delete} />
                 )}
-                title="Delete space"
+                title={t('menu.delete')}
                 titleStyle={{ color: theme.semantic.delete }}
                 disabled={busy}
                 onPress={() => {
@@ -286,7 +294,7 @@ export function SharedHeaderMenu({
               style={styles.closeButton}
               contentStyle={styles.closeButtonContent}
             >
-              Close period
+              {t('menu.closePeriod')}
             </Button>
           </View>
         </>

@@ -11,6 +11,7 @@ import {
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import type { SharedExpenseWithSplits, SharedSpace, SharedSpaceMember } from '../../models';
 import { useAppData } from '../../data/DataProvider';
+import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import { formatCents } from '../../utils/currency';
 import { sharedMemberName } from '../../utils/shared-members';
@@ -24,6 +25,7 @@ export default function SharedBalancesScreen() {
   const spaceId = Number(params.spaceId);
   const { settings } = useAppData();
   const theme = useAppTheme();
+  const { t } = useI18n();
 
   const [space, setSpace] = useState<SharedSpace | null>(null);
   const [members, setMembers] = useState<SharedSpaceMember[]>([]);
@@ -80,21 +82,24 @@ export default function SharedBalancesScreen() {
   return (
     <KeyboardAwareScrollView contentContainerStyle={styles.container}>
       <Card mode="elevated" style={styles.card}>
-        <Card.Title title={space?.name ?? 'Balances'} subtitle="Current period" />
+        <Card.Title title={space?.name ?? t('sharedReport.balances')} subtitle={t('sharedBalances.currentPeriod')} />
         <Card.Content style={styles.cardContent}>
           {balances.length === 0 ? (
             <PaperText variant="bodyMedium" style={styles.text}>
-              Add members to see who owes what.
+              {t('sharedBalances.addMembers')}
             </PaperText>
           ) : (
             balances.map((balance) => (
               <List.Item
                 key={balance.memberId}
-                title={memberNames.get(balance.memberId) ?? `Member #${balance.memberId}`}
-                description={`Paid ${formatCents(
-                  balance.paidCents,
-                  settings.currencySymbol
-                )} · share ${formatCents(balance.owedCents, settings.currencySymbol)}`}
+                title={
+                  memberNames.get(balance.memberId) ??
+                  t('sharedBalances.memberNumber', { id: balance.memberId })
+                }
+                description={t('sharedBalances.paidShare', {
+                  paid: formatCents(balance.paidCents, settings.currencySymbol),
+                  owed: formatCents(balance.owedCents, settings.currencySymbol),
+                })}
                 right={() => (
                   <PaperText
                     variant="titleMedium"
@@ -117,14 +122,17 @@ export default function SharedBalancesScreen() {
             <>
               <Divider style={styles.divider} />
               <PaperText variant="labelLarge" style={styles.sectionLabel}>
-                Settle up
+                {t('sharedBalances.settleUp')}
               </PaperText>
               {settlements.map((settlement) => (
                 <List.Item
                   key={`${settlement.fromMemberId}-${settlement.toMemberId}`}
-                  title={`${memberNames.get(settlement.fromMemberId) ?? 'Someone'} pays ${
-                    memberNames.get(settlement.toMemberId) ?? 'someone'
-                  }`}
+                  title={t('sharedBalances.pays', {
+                    from:
+                      memberNames.get(settlement.fromMemberId) ?? t('sharedBalances.someone'),
+                    to:
+                      memberNames.get(settlement.toMemberId) ?? t('sharedBalances.someoneLower'),
+                  })}
                   right={() => (
                     <PaperText variant="titleMedium">
                       {formatCents(settlement.amountCents, settings.currencySymbol)}

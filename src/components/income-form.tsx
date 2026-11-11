@@ -7,6 +7,7 @@ import { DateField } from './date-field';
 import { DAYJS_STORE_DATE_FORMAT, monthLabel } from '../utils/date';
 import dayjs from 'dayjs';
 import type { IncomeInput } from '../database/income';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
 import {
   activeMonthDateWindow,
@@ -46,21 +47,22 @@ export function IncomeForm({ initial, symbol, activeMonthKey, onSubmit }: Income
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const theme = useAppTheme();
+  const { t } = useI18n();
   const dateWindow = activeMonthDateWindow(activeMonthKey);
 
   const handleSubmit = async () => {
     setError(null);
     if (amount === null || amount <= 0) {
-      setError('Enter a valid amount.');
+      setError(t('form.enterValidAmount'));
       return;
     }
     if (description.trim().length === 0) {
-      setError('Enter a description.');
+      setError(t('form.enterDescription'));
       return;
     }
     const dateCheck = validateDateInActiveMonth(date, activeMonthKey, 'One-off income');
     if (!dateCheck.ok) {
-      setError(dateCheck.error);
+      setError(t('form.dateOutsideActiveMonth', { month: monthLabel(activeMonthKey) }));
       return;
     }
     setSubmitting(true);
@@ -71,10 +73,8 @@ export function IncomeForm({ initial, symbol, activeMonthKey, onSubmit }: Income
         description: description.trim(),
         note: note.trim().length > 0 ? note.trim() : null,
       });
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error ? submitError.message : 'The income could not be saved.'
-      );
+    } catch {
+      setError(t('form.incomeSaveError'));
     } finally {
       setSubmitting(false);
     }
@@ -83,7 +83,7 @@ export function IncomeForm({ initial, symbol, activeMonthKey, onSubmit }: Income
   return (
     <View>
       <AmountInput
-        label="Amount"
+        label={t('form.amount')}
         value={amount}
         onChange={setAmount}
         autoFocus={!initial}
@@ -91,15 +91,15 @@ export function IncomeForm({ initial, symbol, activeMonthKey, onSubmit }: Income
         prefix={symbol}
       />
       <TextInput
-        label="Description"
+        label={t('form.description')}
         mode="outlined"
         value={description}
         onChangeText={setDescription}
-        placeholder="Where did the money come from?"
+        placeholder={t('form.descriptionPlaceholder')}
         style={styles.field}
       />
       <TextInput
-        label="Note"
+        label={t('form.note')}
         mode="outlined"
         value={note}
         onChangeText={setNote}
@@ -112,10 +112,10 @@ export function IncomeForm({ initial, symbol, activeMonthKey, onSubmit }: Income
         maximumDate={dateWindow.maximumDate}
       />
       <Text variant="labelSmall" style={[styles.monthHint, { color: theme.text.secondary }]}>
-        {`Dates are limited to ${monthLabel(activeMonthKey)}.`}
+        {t('form.datesLimited', { month: monthLabel(activeMonthKey) })}
       </Text>
       <Button mode="contained" onPress={handleSubmit} loading={submitting} disabled={submitting} style={styles.submit}>
-        Save
+        {t('common.save')}
       </Button>
       {error ? (
         <Text variant="bodySmall" style={[styles.error, { color: theme.colors.error }]}>

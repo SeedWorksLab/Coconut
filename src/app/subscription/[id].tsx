@@ -7,9 +7,11 @@ import { useAppData } from '../../data/DataProvider';
 import { SubscriptionForm } from '../../components/subscription-form';
 import { LoadingScreen } from '../../components/loading-screen';
 import { useAppTheme } from '../../theme';
+import { useI18n } from '../../i18n';
 
 export default function EditSubscriptionScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { ready, settings, allSubscriptions, saveSubscription, removeSubscription } =
     useAppData();
@@ -26,7 +28,7 @@ export default function EditSubscriptionScreen() {
     <>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="Subscription" />
+        <Appbar.Content title={t('route.subscription')} />
       </Appbar.Header>
       {loading ? (
         <LoadingScreen />
@@ -57,7 +59,7 @@ export default function EditSubscriptionScreen() {
                 removeSubscription(subscription!.id).then(() => router.back());
               }}
             >
-              Delete subscription
+              {t('route.deleteSubscription')}
             </Button>
           </View>
         </KeyboardAwareScrollView>

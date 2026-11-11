@@ -1,9 +1,8 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { COMPLETE_ADAPTERS, SYNC_SETTINGS_KEYS, type SyncTableAdapter } from './serialize';
 import { isRemoteNewer, nowIso } from './time';
-import { getSupabaseUserId, SyncAuthError } from './supabase';
+import { getSupabaseUserId, SyncAuthError, type CoconutClient } from './supabase';
 
 interface OutboxEntry {
   table_name: string;
@@ -144,7 +143,7 @@ function pushFkResolver(maps: FkMaps) {
     if (localValue === null || localValue === undefined) {
       return null;
     }
-    if (localField === 'budget_id') {
+    if (localField === 'budget_id' || localField === 'funded_budget_id') {
       return maps.budgetUuidByBudgetId.get(String(localValue)) ?? null;
     }
     if (localField === 'fixed_expense_id') {
@@ -155,7 +154,7 @@ function pushFkResolver(maps: FkMaps) {
 }
 
 async function remoteUpdatedAtOf(
-  client: SupabaseClient,
+  client: CoconutClient,
   adapter: SyncTableAdapter,
   rowKey: string
 ): Promise<string | null> {
@@ -182,7 +181,7 @@ async function remoteUpdatedAtOf(
 }
 
 async function pushRow(
-  client: SupabaseClient,
+  client: CoconutClient,
   db: SQLiteDatabase,
   adapter: SyncTableAdapter,
   entry: OutboxEntry,
@@ -197,7 +196,11 @@ async function pushRow(
 
   const remoteUpdatedAt = await remoteUpdatedAtOf(client, adapter, entry.row_key);
   const localUpdatedAt = (localRow.updated_at as string | null) ?? null;
-  if (remoteUpdatedAt && isRemoteNewer(localUpdatedAt, remoteUpdatedAt)) {
+  // Only a strictly newer local write may replace an existing remote row. Ties
+  // are exactly the rows a pull already wrote locally (and possibly nulled an
+  // unresolved FK on), so pushing them back would overwrite a good remote copy
+  // with the lossy local one on every full sync.
+  if (remoteUpdatedAt && !isRemoteNewer(remoteUpdatedAt, localUpdatedAt)) {
     await pruneOutbox(db, entry.table_name, entry.row_key);
     return;
   }
@@ -220,7 +223,7 @@ async function pushRow(
 }
 
 async function deleteRemoteRow(
-  client: SupabaseClient,
+  client: CoconutClient,
   adapter: SyncTableAdapter,
   rowKey: string
 ): Promise<void> {
@@ -239,7 +242,7 @@ async function deleteRemoteRow(
 }
 
 async function pushTombstones(
-  client: SupabaseClient,
+  client: CoconutClient,
   db: SQLiteDatabase,
   userId: string
 ): Promise<number> {
@@ -291,7 +294,7 @@ export interface PushResult {
 }
 
 export async function pushSettings(
-  client: SupabaseClient,
+  client: CoconutClient,
   db: SQLiteDatabase,
   userId: string,
   keys: readonly string[] = SYNC_SETTINGS_KEYS
@@ -335,7 +338,7 @@ export async function pushSettings(
 }
 
 export async function pushChanges(
-  client: SupabaseClient,
+  client: CoconutClient,
   db: SQLiteDatabase,
   full = false
 ): Promise<PushResult> {

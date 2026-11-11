@@ -5,6 +5,7 @@ import type { Budget, Transaction } from '../models';
 import type { BudgetWithStatus } from '../data/DataProvider';
 import { budgetAvailableAmounts } from '../services/forecast-service';
 import { formatCents } from '../utils/currency';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
 
 interface BudgetSelectProps {
@@ -28,6 +29,7 @@ export function BudgetSelect({
 }: BudgetSelectProps) {
   const [visible, setVisible] = useState(false);
   const theme = useAppTheme();
+  const { t } = useI18n();
   const selected = budgets.find((budget) => budget.id === selectedId);
   const availableByBudgetId = useMemo(
     () =>
@@ -44,7 +46,7 @@ export function BudgetSelect({
 
   let description: string | null;
   if (!selected) {
-    description = 'Transactions can exist without a budget';
+    description = t('form.transactionWithoutBudget');
   } else {
     const availableCents = availableByBudgetId.get(selected.id);
     description = availableCents === undefined ? null : formatCents(availableCents, symbol);
@@ -53,7 +55,7 @@ export function BudgetSelect({
   return (
     <>
       <List.Item
-        title={selected ? selected.name : 'No budget'}
+        title={selected ? selected.name : t('form.noBudget')}
         description={description}
         left={(props) => <List.Icon {...props} icon="tag-outline" />}
         onPress={() => setVisible(true)}
@@ -61,7 +63,7 @@ export function BudgetSelect({
       <Portal>
         <Modal visible={visible} onDismiss={() => setVisible(false)} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
           <Text variant="titleMedium" style={styles.title}>
-            Budget
+            {t('form.budget')}
           </Text>
           <RadioButton.Group
             onValueChange={(value) => {
@@ -70,13 +72,13 @@ export function BudgetSelect({
             }}
             value={selectedId === null ? 'none' : String(selectedId)}
           >
-            <RadioButton.Item label="No budget" value="none" />
+            <RadioButton.Item label={t('form.noBudget')} value="none" />
             {budgets.map((budget) => (
               <RadioButton.Item key={budget.id} label={budget.name} value={String(budget.id)} />
             ))}
           </RadioButton.Group>
           <Button mode="text" onPress={() => setVisible(false)}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </Modal>
       </Portal>

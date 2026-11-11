@@ -13,12 +13,15 @@ more authenticated users can form a Shared Space to track shared expenses.
 Local SQLite storage is the single source of truth; the app works fully offline
 with no network.
 
-Optional sync: the user's own Supabase project is the ONLY permitted backend,
-used for (a) opt-in row-level synchronization of personal data and (b) Shared
-Spaces, where separate Supabase Auth users exchange shared expenses via RLS
-policies (see `idea.txt` §11–12). It is local-first: with sync disabled the app
-makes zero network requests. Supabase URL + API key (publishable key, or the
-legacy anon key) are configured in-app (never hardcoded).
+Optional sync: SeedWorks Cloud, the shared SeedWorks Supabase project, is the
+default backend for official builds; self-hosters can point Coconut at their
+own Supabase project instead. It is used for (a) opt-in row-level
+synchronization of personal data and (b) Shared Spaces, where separate Supabase
+Auth users exchange shared expenses via RLS policies (see `idea.txt` §11–12).
+It is local-first: with sync disabled the app makes zero network requests. A
+public publishable key may be compiled into the app; service-role or other
+secret keys must never ship in the client. Custom Supabase URL + publishable
+key are configured in-app.
 
 Tech stack (mandatory, do not deviate without explicit user approval):
 - React Native via Expo SDK
@@ -32,12 +35,13 @@ Tech stack (mandatory, do not deviate without explicit user approval):
 - react-native-web + react-dom (desktop/web build support)
 
 Forbidden additions: Redux/MobX/Zustand-style state frameworks, ads, analytics,
-and any backend/cloud service OTHER than a user-configured Supabase project.
-Supabase Auth is used only to identify users for optional sync and Shared
-Spaces; no other authentication provider. Never hardcode credentials; Supabase
-URL + API key (publishable key, or the legacy anon key) are entered in the
-in-app Settings screen. Also forbidden:
-react-native-vector-icons (use @expo/vector-icons which ships with Expo).
+and any backend/cloud service OTHER than SeedWorks Cloud or a user-configured
+Supabase project. Supabase Auth is used only to identify users for optional
+sync and Shared Spaces; no other authentication provider. Never hardcode
+secrets; the client may ship only a public publishable key. A custom Supabase
+URL + publishable key (or legacy anon key) is entered in the in-app Settings
+screen. Also forbidden: react-native-vector-icons (use @expo/vector-icons which
+ships with Expo).
 
 ---
 
@@ -101,6 +105,8 @@ where a `.web` variant is the cleaner solution.
 - Use a single database file via expo-sqlite.
 - Schema changes require a migration: a numbered migration appended to
   `src/database/migrations.ts`. Never mutate an existing migration.
+- Remote Supabase SQL lives in the central `SeedWorks/Supabase` repository under
+  the `coconut` schema. Do not add app-local `supabase/migrations`.
 - Sync-related schema changes are **additive and go in a new numbered
   migration** (e.g. Migration 2). Never modify Migration 1. Additive rules:
   - Every sync-facing data table gets `uuid TEXT` and `updated_at TEXT`

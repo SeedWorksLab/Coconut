@@ -7,9 +7,11 @@ import {
   getIgnoredReleaseVersion,
   setIgnoredReleaseVersion,
 } from '../database/updatePrefs';
+import { useI18n } from '../i18n';
 import { UpdateAvailableDialog } from './update-available-dialog';
 
 export function UpdateNotifier() {
+  const { t } = useI18n();
   const [update, setUpdate] = useState<ReleaseInfo | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -47,9 +49,9 @@ export function UpdateNotifier() {
     try {
       await Linking.openURL(url);
     } catch {
-      Alert.alert('Could not open the update link.');
+      Alert.alert(t('update.linkError'));
     }
-  }, [update]);
+  }, [t, update]);
 
   const ignore = useCallback(async () => {
     const version = update?.version;

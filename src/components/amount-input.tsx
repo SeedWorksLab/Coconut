@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { HelperText, TextInput as PaperTextInput } from 'react-native-paper';
 import { centsFromString } from '../utils/currency';
+import { useI18n } from '../i18n';
 
 interface AmountInputProps {
   label: string;
@@ -31,6 +32,7 @@ export function AmountInput({
   allowNegative = false,
   disabled = false,
 }: AmountInputProps) {
+  const { t } = useI18n();
   const [text, setText] = useState(() =>
     value === null ? '' : centsToRawInput(value)
   );
@@ -114,7 +116,7 @@ export function AmountInput({
             <PaperTextInput.Icon
               icon={negative ? 'plus' : 'minus'}
               onPress={flipSign}
-              accessibilityLabel={negative ? 'Make positive' : 'Make negative'}
+              accessibilityLabel={negative ? t('form.makePositive') : t('form.makeNegative')}
             />
           ) : undefined
         }

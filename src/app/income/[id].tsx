@@ -6,6 +6,7 @@ import { Button, List, Text } from 'react-native-paper';
 import type { Income } from '../../models';
 import { getIncome } from '../../database/income';
 import { useAppData } from '../../data/DataProvider';
+import { useI18n } from '../../i18n';
 import { IncomeForm } from '../../components/income-form';
 import { LoadingScreen } from '../../components/loading-screen';
 import { useAppTheme } from '../../theme';
@@ -17,6 +18,7 @@ export default function EditIncomeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { settings, activeMonthKey, allMonths, saveIncome, removeIncome } = useAppData();
   const theme = useAppTheme();
+  const { t } = useI18n();
   const router = useRouter();
   const [income, setIncome] = useState<Income | null>(null);
 
@@ -42,28 +44,28 @@ export default function EditIncomeScreen() {
         <View>
           <List.Item
             title={income.description}
-            description="Description"
+            description={t('route.description')}
             left={(props) => <List.Icon {...props} icon="bank-transfer-in" />}
           />
           <List.Item
             title={formatCents(income.amountCents, settings.currencySymbol)}
-            description="Amount"
+            description={t('form.amount')}
             left={(props) => <List.Icon {...props} icon="currency-eur" />}
           />
           <List.Item
             title={dayjs(income.date).format('ddd, D MMM YYYY')}
-            description="Date"
+            description={t('form.date')}
             left={(props) => <List.Icon {...props} icon="calendar-outline" />}
           />
           {income.note ? (
             <List.Item
               title={income.note}
-              description="Note"
+              description={t('form.note')}
               left={(props) => <List.Icon {...props} icon="note-text-outline" />}
             />
           ) : null}
           <Text variant="bodySmall" style={styles.closedHint}>
-            {`${monthLabel(income.monthKey)} is closed, so this income is read-only.`}
+            {t('route.closedIncomeReadOnly', { month: monthLabel(income.monthKey) })}
           </Text>
         </View>
       ) : (
@@ -85,7 +87,7 @@ export default function EditIncomeScreen() {
             removeIncome(income.id).then(() => router.back());
           }}
         >
-          Delete one-off income
+          {t('route.deleteIncome')}
         </Button>
       </View>
     </KeyboardAwareScrollView>

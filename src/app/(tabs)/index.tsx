@@ -4,6 +4,7 @@ import { KeyboardAwareScrollView } from '../../components/keyboard-aware-scroll-
 import { Button, Card, FAB, List, Text, TouchableRipple } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAppData } from '../../data/DataProvider';
+import { useI18n } from '../../i18n';
 import { formatCents, formatSignedCents } from '../../utils/currency';
 import { EVERGREEN_MONTH_KEY, monthLabel, monthProgress, relativeDayLabel } from '../../utils/date';
 import { StatCard, type Tone } from '../../components/stat-card';
@@ -31,6 +32,7 @@ export default function OverviewScreen() {
   } = useAppData();
   const theme = useAppTheme();
   const router = useRouter();
+  const { t, language } = useI18n();
 
   if (!ready) {
     return <LoadingScreen />;
@@ -83,18 +85,18 @@ export default function OverviewScreen() {
       <Card mode="contained" style={styles.reserveCard} contentStyle={styles.cardContent}>
         <Card.Content>
           <Text variant="titleMedium" style={styles.reserveTitle}>
-            Savings Reserve
+            {t('overview.savingsReserve')}
           </Text>
           <View style={styles.reserveRow}>
-            <Text variant="bodyMedium">Starting reserve</Text>
+            <Text variant="bodyMedium">{t('overview.startingReserve')}</Text>
             <Text variant="bodyMedium">{formatCents(reserveProjection.startingReserveCents, symbol)}</Text>
           </View>
           <View style={styles.reserveRow}>
-            <Text variant="bodyMedium">Planned draw</Text>
+            <Text variant="bodyMedium">{t('overview.plannedDraw')}</Text>
             <Text variant="bodyMedium">{formatSignedCents(plannedDraw, symbol)}</Text>
           </View>
           <View style={styles.reserveRow}>
-            <Text variant="bodyMedium">Draw so far</Text>
+            <Text variant="bodyMedium">{t('overview.drawSoFar')}</Text>
             <Text
               variant="bodyMedium"
               style={{ color: behindPlan ? theme.semantic.overBudget : theme.semantic.goodBudget }}
@@ -103,7 +105,7 @@ export default function OverviewScreen() {
             </Text>
           </View>
           <View style={styles.reserveRow}>
-            <Text variant="bodyMedium">{reserved ? 'Month closed' : 'Projected month end'}</Text>
+            <Text variant="bodyMedium">{reserved ? t('overview.monthClosed') : t('overview.projectedMonthEnd')}</Text>
             <AnimatedNumber
               value={reserveProjection.endingReserveCents}
               format={(v) => formatCents(v, symbol)}
@@ -114,19 +116,19 @@ export default function OverviewScreen() {
       </Card>
 
       <View style={styles.statRow}>
-        <StatCard label="Planned spending" value={forecast.plannedSpendingCents} format={(v) => formatCents(v, symbol)} />
-        <StatCard label="Available" value={forecast.availableCents} format={(v) => formatCents(v, symbol)} />
+        <StatCard label={t('overview.plannedSpending')} value={forecast.plannedSpendingCents} format={(v) => formatCents(v, symbol)} />
+        <StatCard label={t('overview.available')} value={forecast.availableCents} format={(v) => formatCents(v, symbol)} />
       </View>
       <View style={styles.statRow}>
-        <StatCard label="Actual spent" value={forecast.actualSpendingCents} format={(v) => formatCents(v, symbol)} />
-        <StatCard label="Remaining" value={remaining} format={(v) => formatCents(v, symbol)} tone={remainingTone} sub={remaining < 0 ? 'Over plan' : null} />
+        <StatCard label={t('overview.actualSpent')} value={forecast.actualSpendingCents} format={(v) => formatCents(v, symbol)} />
+        <StatCard label={t('overview.remaining')} value={remaining} format={(v) => formatCents(v, symbol)} tone={remainingTone} sub={remaining < 0 ? t('overview.overPlan') : null} />
       </View>
 
       {subscriptions.length > 0 && (
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
         <Card.Title
-          title="Subscriptions"
-          subtitle={`${formatCents(forecast.subscriptionTotalCents, symbol)} deducted this month`}
+          title={t('settings.subscriptions')}
+          subtitle={t('overview.subscriptionsDeducted', { amount: formatCents(forecast.subscriptionTotalCents, symbol) })}
         />
         <Card.Content>
           {subscriptions.map((charge) => {
@@ -136,14 +138,14 @@ export default function OverviewScreen() {
                 : null;
             const period = subscription
               ? subscription.endMonth === EVERGREEN_MONTH_KEY
-                ? 'Ongoing'
+                ? t('overview.ongoing')
                 : `${monthLabel(subscription.startMonth)} \u2013 ${monthLabel(subscription.endMonth)}`
-              : 'No longer active';
+              : t('overview.noLongerActive');
             return (
               <FadeIn key={charge.id}>
                 <List.Item
                   title={subscription?.name ?? charge.name}
-                  description={`Deducted monthly \u00b7 ${period}`}
+                  description={t('overview.deductedMonthly', { period })}
                   left={(props) => <List.Icon {...props} icon="calendar-refresh" />}
                   right={() => (
                     <Text variant="bodyLarge">
@@ -170,13 +172,13 @@ export default function OverviewScreen() {
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
         <Card.Title
-          title="Fixed Expenses"
-          subtitle={`${formatCents(forecast.fixedExpectedTotalCents, symbol)} expected`}
+          title={t('overview.fixedExpenses')}
+          subtitle={t('overview.expected', { amount: formatCents(forecast.fixedExpectedTotalCents, symbol) })}
         />
         <Card.Content>
           {fixedExpenseStatuses.length === 0 ? (
             <Text variant="bodyMedium" style={styles.empty}>
-              None defined.
+              {t('overview.noneDefined')}
             </Text>
           ) : (
             fixedExpenseStatuses.map(({ instance, expense }) => {
@@ -184,8 +186,8 @@ export default function OverviewScreen() {
               return (
                 <List.Item
                   key={instance.id}
-                  title={expense?.name ?? `Expense #${instance.fixedExpenseId}`}
-                  description={known ? 'Actual' : `Estimated${expense?.kind === 'variable' ? '' : ' (fixed)'}`}
+                  title={expense?.name ?? t('overview.expenseNumber', { id: instance.fixedExpenseId })}
+                  description={known ? t('overview.actual') : expense?.kind === 'variable' ? t('overview.estimated') : t('overview.estimatedFixed')}
                   right={() => (
                     <Text variant="bodyLarge">{formatCents(instance.actualAmountCents ?? instance.expectedAmountCents, symbol)}</Text>
                   )}
@@ -198,8 +200,8 @@ export default function OverviewScreen() {
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
         <Card.Title
-          title="One-off income"
-          subtitle={`${formatCents(forecast.incomeTotalCents, symbol)} this month`}
+          title={t('overview.oneOffIncome')}
+          subtitle={t('overview.thisMonth', { amount: formatCents(forecast.incomeTotalCents, symbol) })}
           right={() => (
             <Button
               mode="contained-tonal"
@@ -207,21 +209,21 @@ export default function OverviewScreen() {
               style={styles.incomeAdd}
               onPress={() => router.push('/income/new')}
             >
-              Add
+              {t('common.add')}
             </Button>
           )}
         />
         <Card.Content>
           {income.length === 0 ? (
             <Text variant="bodyMedium" style={styles.empty}>
-              None yet. One-off income adds to what is available this month.
+              {t('overview.noneIncome')}
             </Text>
           ) : (
             income.map((entry) => (
               <FadeIn key={entry.id}>
                 <List.Item
                   title={entry.description}
-                  description={relativeDayLabel(entry.date)}
+                  description={relativeDayLabel(entry.date, undefined, language)}
                   left={(props) => <List.Icon {...props} icon="bank-transfer-in" />}
                   right={() => (
                     <Text variant="bodyLarge">{formatCents(entry.amountCents, symbol)}</Text>
@@ -236,11 +238,11 @@ export default function OverviewScreen() {
       </Card>
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
-        <Card.Title title="Flexible Budgets" subtitle={`${formatCents(forecast.budgetPlannedTotalCents, symbol)} planned`} />
+        <Card.Title title={t('overview.flexibleBudgets')} subtitle={t('overview.planned', { amount: formatCents(forecast.budgetPlannedTotalCents, symbol) })} />
         <Card.Content>
           {budgetStatuses.length === 0 ? (
             <Text variant="bodyMedium" style={styles.empty}>
-              None defined. Set them up in Planning.
+              {t('overview.noneBudgets')}
             </Text>
           ) : (
             budgetStatuses.map(({ budget, status }) => {
@@ -262,7 +264,7 @@ export default function OverviewScreen() {
                       <Text variant="bodyMedium">{budget.name}</Text>
                       <Text variant="bodySmall" style={{ color: over ? theme.semantic.overBudget : theme.colors.onSurfaceVariant }}>
                         {formatCents(status.spentCents, symbol)} / {formatCents(status.plannedCents, symbol)}
-                        {over ? ' • over' : ''}
+                        {over ? t('overview.over') : ''}
                       </Text>
                     </View>
                     <MonthProgressBar
@@ -280,21 +282,21 @@ export default function OverviewScreen() {
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
         <Card.Title
-          title="Recent Transactions"
+          title={t('overview.recentTransactions')}
           right={() => (
             <Text
               variant="labelMedium"
               style={{ color: theme.colors.primary, marginRight: 12, opacity: 0.8 }}
               onPress={() => router.push('/transactions')}
             >
-              See all
+              {t('overview.seeAll')}
             </Text>
           )}
         />
         <Card.Content>
           {recentTransactions.length === 0 ? (
             <Text variant="bodyMedium" style={styles.empty}>
-              No transactions yet.
+              {t('overview.noTransactions')}
             </Text>
           ) : (
             recentTransactions.map((tx) => {
@@ -303,7 +305,7 @@ export default function OverviewScreen() {
                 <FadeIn key={tx.id}>
                 <List.Item
                   title={tx.merchant}
-                  description={relativeDayLabel(tx.date)}
+                  description={relativeDayLabel(tx.date, undefined, language)}
                   left={(props) => (
                     <List.Icon
                       {...props}

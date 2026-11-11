@@ -5,6 +5,7 @@ import type { Attachment } from '../models';
 import { formatBytes, isImageMime } from '../utils/attachment';
 import { attachmentPreviewUri, openAttachment } from '../utils/attachment-display';
 import { captureAttachmentPhoto, pickAttachmentFile } from '../utils/attachment-source';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
 
 interface AttachmentFieldProps {
@@ -14,6 +15,7 @@ interface AttachmentFieldProps {
 
 export function AttachmentField({ value, onChange }: AttachmentFieldProps) {
   const theme = useAppTheme();
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
 
@@ -91,7 +93,7 @@ export function AttachmentField({ value, onChange }: AttachmentFieldProps) {
       ) : (
         <Card.Content>
           <Text variant="labelMedium" style={[styles.label, { color: theme.colors.outline }]}>
-            Receipt attachment
+            {t('form.receiptAttachment')}
           </Text>
           <View style={styles.buttonRow}>
             <Button
@@ -102,7 +104,7 @@ export function AttachmentField({ value, onChange }: AttachmentFieldProps) {
               disabled={busy}
               style={styles.button}
             >
-              Take photo
+              {t('form.takePhoto')}
             </Button>
             <Button
               mode="outlined"
@@ -112,7 +114,7 @@ export function AttachmentField({ value, onChange }: AttachmentFieldProps) {
               disabled={busy}
               style={styles.button}
             >
-              Choose file
+              {t('form.chooseFile')}
             </Button>
           </View>
         </Card.Content>

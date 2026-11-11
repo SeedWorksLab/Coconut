@@ -7,6 +7,7 @@ import { AmountInput } from './amount-input';
 import { MonthField } from './month-field';
 import { currentMonthKey, EVERGREEN_MONTH_KEY } from '../utils/date';
 import { monthlyFromTotal, subscriptionMonths } from '../services/subscription-service';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
 
 interface Props {
@@ -41,6 +42,7 @@ export function SubscriptionForm({
   const [active, setActive] = useState(initialData?.active ?? true);
   const [amountError, setAmountError] = useState<string | null>(null);
   const theme = useAppTheme();
+  const { t } = useI18n();
 
   const hasName = name.trim().length > 0;
   const periodMonths = subscriptionMonths({ startMonth, endMonth });
@@ -52,15 +54,15 @@ export function SubscriptionForm({
       return;
     }
     if (!periodValid) {
-      setAmountError('End month must be after the start month.');
+      setAmountError(t('subscription.endBeforeStartError'));
       return;
     }
     if (totalAmountCents === null || totalAmountCents <= 0) {
-      setAmountError('Enter a valid total amount.');
+      setAmountError(t('subscription.validTotal'));
       return;
     }
     if (monthlyAmountCents === null || monthlyAmountCents <= 0) {
-      setAmountError('Enter a valid monthly amount.');
+      setAmountError(t('subscription.validMonthly'));
       return;
     }
     onSubmit({
@@ -78,15 +80,15 @@ export function SubscriptionForm({
   return (
     <View style={styles.container}>
       <TextInput
-        label="Name"
+        label={t('form.name')}
         value={name}
         onChangeText={setName}
         mode="outlined"
-        placeholder="e.g. Streaming service"
+        placeholder={t('subscription.placeholder')}
         style={styles.field}
       />
       <AmountInput
-        label="Total amount"
+        label={t('subscription.totalAmount')}
         value={totalAmountCents}
         onChange={setTotalAmountCents}
         prefix={currencySymbol}
@@ -94,15 +96,18 @@ export function SubscriptionForm({
       />
       <View style={styles.field}>
         <AmountInput
-          label="Monthly amount"
+          label={t('subscription.monthlyAmount')}
           value={monthlyAmountCents}
           onChange={setMonthlyAmountCents}
           prefix={currencySymbol}
         />
       </View>
       <List.Item
-        title={`Calculate monthly amount for ${periodMonths} ${periodMonths === 1 ? 'month' : 'months'}`}
-        description="Split the total amount evenly across the period"
+        title={t('subscription.calculateMonthly', {
+          count: periodMonths,
+          unit: periodMonths === 1 ? t('subscription.month') : t('subscription.months'),
+        })}
+        description={t('subscription.calculateMonthlyDescription')}
         titleStyle={styles.helperTitle}
         descriptionStyle={styles.helperDescription}
         onPress={() => {
@@ -112,25 +117,25 @@ export function SubscriptionForm({
         }}
       />
 
-      <List.Subheader style={styles.sectionSubheader}>Timeline</List.Subheader>
-      <Text variant="bodyMedium" style={styles.sectionTitle}>Since</Text>
-      <MonthField value={startMonth} onChange={setStartMonth} label="Start month" />
-      <Text variant="bodyMedium" style={styles.sectionTitle}>Until</Text>
-      <MonthField value={endMonth} onChange={setEndMonth} label="End month" />
+      <List.Subheader style={styles.sectionSubheader}>{t('subscription.timeline')}</List.Subheader>
+      <Text variant="bodyMedium" style={styles.sectionTitle}>{t('subscription.since')}</Text>
+      <MonthField value={startMonth} onChange={setStartMonth} label={t('subscription.startMonth')} />
+      <Text variant="bodyMedium" style={styles.sectionTitle}>{t('subscription.until')}</Text>
+      <MonthField value={endMonth} onChange={setEndMonth} label={t('subscription.endMonth')} />
       {!periodValid ? (
         <Text variant="bodySmall" style={[styles.generalError, { color: theme.colors.error }]}>
-          The end month must be on or after the start month.
+          {t('subscription.endBeforeStart')}
         </Text>
       ) : null}
 
       <List.Item
-        title="Deduct monthly"
-        description="Each month require this amount from what is available"
+        title={t('subscription.deductMonthly')}
+        description={t('subscription.deductMonthlyDescription')}
         right={() => <Switch value={deductMonthly} onValueChange={setDeductMonthly} />}
       />
       <List.Item
-        title="Active"
-        description="Included in the current month's planning"
+        title={t('fixed.active')}
+        description={t('subscription.activePlanningDescription')}
         right={() => <Switch value={active} onValueChange={setActive} />}
       />
 
@@ -141,11 +146,11 @@ export function SubscriptionForm({
         loading={submitting}
         style={styles.submit}
       >
-        Save
+        {t('common.save')}
       </Button>
       {!hasName ? (
         <Text variant="bodySmall" style={[styles.generalError, { color: theme.colors.error }]}>
-          Enter a name.
+          {t('form.enterName')}
         </Text>
       ) : null}
     </View>

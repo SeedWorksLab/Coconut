@@ -7,9 +7,11 @@ import { LoadingScreen } from '../../components/loading-screen';
 import { shareBackup, pickBackupFile, restoreFromBackup } from '../../utils/backup';
 import { AppDialog } from '../../components/app-dialog';
 import { ScreenToast } from '../../components/screen-toast';
+import { useI18n } from '../../i18n';
 
 export default function BackupScreen() {
   const { ready, refresh } = useAppData();
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [confirmUri, setConfirmUri] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -21,11 +23,10 @@ export default function BackupScreen() {
   return (
     <KeyboardAwareScrollView contentContainerStyle={styles.container}>
       <Card mode="elevated" style={styles.card}>
-        <Card.Title title="Export backup" />
+        <Card.Title title={t('backup.exportTitle')} />
         <Card.Content>
           <PaperText variant="bodyMedium" style={styles.text}>
-            Creates a single file containing your entire Coconut dataset. Keep it somewhere safe.
-            Everything is stored on this device only.
+            {t('backup.exportDescription')}
           </PaperText>
           <Button
             mode="contained"
@@ -33,12 +34,12 @@ export default function BackupScreen() {
               setBusy(true);
               try {
                 if (await shareBackup()) {
-                  setToast('Backup exported');
+                  setToast(t('backup.exported'));
                 } else {
-                  setToast('Sharing is not available on this device');
+                  setToast(t('backup.sharingUnavailable'));
                 }
               } catch {
-                setToast('Could not create the backup');
+                setToast(t('backup.createError'));
               } finally {
                 setBusy(false);
               }
@@ -48,17 +49,16 @@ export default function BackupScreen() {
             style={styles.button}
             icon="share-variant-outline"
           >
-            Export backup
+            {t('backup.export')}
           </Button>
         </Card.Content>
       </Card>
 
       <Card mode="elevated" style={styles.card}>
-        <Card.Title title="Restore from backup" />
+        <Card.Title title={t('backup.restoreTitle')} />
         <Card.Content>
           <PaperText variant="bodyMedium" style={styles.text}>
-            Pick a backup file to replace the current data. The restore overwrites everything on this
-            device.
+            {t('backup.restoreDescription')}
           </PaperText>
           <Button
             mode="outlined"
@@ -70,7 +70,7 @@ export default function BackupScreen() {
                   setConfirmUri(file.uri);
                 }
               } catch {
-                setToast('Could not open the file picker');
+                setToast(t('backup.pickerError'));
               } finally {
                 setBusy(false);
               }
@@ -79,22 +79,21 @@ export default function BackupScreen() {
             style={styles.button}
             icon="folder-open-outline"
           >
-            Choose backup file
+            {t('backup.choose')}
           </Button>
         </Card.Content>
       </Card>
 
       <Portal>
         <AppDialog visible={confirmUri !== null} onDismiss={() => setConfirmUri(null)}>
-          <AppDialog.Title>Replace current data?</AppDialog.Title>
+          <AppDialog.Title>{t('backup.replaceTitle')}</AppDialog.Title>
           <AppDialog.Content>
             <PaperText variant="bodyMedium">
-              All current transactions, months and settings will be replaced with the contents of the
-              backup.
+              {t('backup.replaceBody')}
             </PaperText>
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setConfirmUri(null)}>Cancel</Button>
+            <Button onPress={() => setConfirmUri(null)}>{t('common.cancel')}</Button>
             <Button
               loading={busy}
               disabled={busy}
@@ -106,16 +105,16 @@ export default function BackupScreen() {
                 try {
                   await restoreFromBackup(confirmUri);
                   await refresh();
-                  setToast('Backup restored');
+                  setToast(t('backup.restored'));
                 } catch {
-                  setToast('The backup could not be restored');
+                  setToast(t('backup.restoreError'));
                 } finally {
                   setBusy(false);
                   setConfirmUri(null);
                 }
               }}
             >
-              Restore
+              {t('backup.restore')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>
@@ -123,7 +122,7 @@ export default function BackupScreen() {
 
       <List.Item
         title=""
-        description="Tip: export a backup before testing experimental changes."
+        description={t('backup.tip')}
         style={styles.tip}
       />
 

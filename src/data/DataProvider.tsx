@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import dayjs, { type Dayjs } from 'dayjs';
+import { DEFAULT_LANGUAGE, type Language } from '../i18n/types';
 import React, {
   createContext,
   useCallback,
@@ -31,7 +32,6 @@ import { getSettings, updateSettings } from '../database/settings';
 import { getSyncState, updateSyncState } from '../database/syncState';
 import { isValidApiKey, normalizeSupabaseUrl } from '../services/sync-service';
 import {
-  closeMonth as persistCloseMonth,
   createPlannedMonth,
   getAllMonths,
   getMonth,
@@ -89,7 +89,7 @@ import {
 } from '../database/reserve';
 import { getMonthData } from '../database/queries';
 import { reconcileSharedTransactionsForLocalUser } from '../database/sharedLinking';
-import { syncSharedChanges } from '../sync/engine';
+import { syncPersonalChanges, syncSharedChanges } from '../sync/engine';
 import {
   buildAutomaticReserveTransfer,
   projectReserve,
@@ -160,7 +160,9 @@ interface AppData {
   setThemeMode: (mode: Settings['themeMode']) => Promise<void>;
   setRecentTransactionsCount: (count: number) => Promise<void>;
   setUsername: (username: string | null) => Promise<void>;
+  setLanguage: (language: Language) => Promise<void>;
   saveSyncConfig: (supabaseUrl: string, apiKey: string) => Promise<boolean>;
+  resetSyncConfig: () => Promise<void>;
   setSyncEnabled: (enabled: boolean) => Promise<void>;
   addFixedExpense: (input: Omit<FixedExpense, 'id'>) => Promise<void>;
   saveFixedExpense: (id: number, input: Omit<FixedExpense, 'id'>) => Promise<void>;
@@ -345,6 +347,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     themeMode: 'system',
     recentTransactionsCount: 5,
     username: null,
+    language: DEFAULT_LANGUAGE,
   });
   const [syncState, setSyncState] = useState<SyncState>({
     supabaseUrl: null,
@@ -390,20 +393,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    // Re-read the personal dataset, then keep shared groups in step with other
-    // members cheaply in the background: push local shared changes and pull
-    // anything new, without the heavy whole-database resync (that stays
-    // available in Settings for emergencies). Once the sync lands, read the
-    // personal dataset again so re-derived mirrors appear without a restart.
+    // Re-read the personal dataset, then catch up shared groups and the personal
+    // tables independently, without the heavy whole-database resync (that stays
+    // available in Settings for emergencies). Once either sync lands, read the
+    // personal dataset again so new rows and re-derived mirrors appear.
     await loadLocal();
-    const synced = syncSharedChanges();
+    const synced = (async () => {
+      let changed = false;
+      try {
+        changed = Boolean(await syncSharedChanges()) || changed;
+      } catch {
+        // The sync state records the failure; still attempt personal sync.
+      }
+      try {
+        changed = Boolean(await syncPersonalChanges()) || changed;
+      } catch {
+        // The sync state records the failure.
+      }
+      return changed;
+    })();
     void synced
-      .then((outcome) => {
-        if (outcome) {
-          return loadLocal();
-        }
-        return undefined;
-      })
+      .then((changed) => (changed ? loadLocal() : undefined))
       .catch(() => undefined);
   }, [loadLocal]);
 
@@ -483,6 +493,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         await updateSettings({ username }, db);
         await refresh();
       },
+      setLanguage: async (language) => {
+        const db = await getDatabase();
+        await updateSettings({ language }, db);
+        await refresh();
+      },
       saveSyncConfig: async (supabaseUrl, apiKey) => {
         const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
         if (normalizedUrl === null || !isValidApiKey(apiKey)) {
@@ -492,6 +507,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         await updateSyncState({ supabaseUrl: normalizedUrl, apiKey: apiKey.trim() }, db);
         await refresh();
         return true;
+      },
+      resetSyncConfig: async () => {
+        const db = await getDatabase();
+        await updateSyncState({ supabaseUrl: null, apiKey: null }, db);
+        await refresh();
       },
       setSyncEnabled: async (enabled) => {
         const db = await getDatabase();

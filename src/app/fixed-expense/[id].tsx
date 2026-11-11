@@ -4,9 +4,11 @@ import { Appbar } from 'react-native-paper';
 import { useAppData } from '../../data/DataProvider';
 import { FixedExpenseForm } from '../../components/fixed-expense-form';
 import { LoadingScreen } from '../../components/loading-screen';
+import { useI18n } from '../../i18n';
 
 export default function EditFixedExpenseScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { ready, settings, allFixedExpenses, saveFixedExpense } = useAppData();
   const [submitting, setSubmitting] = useState(false);
@@ -21,7 +23,7 @@ export default function EditFixedExpenseScreen() {
     <>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="Fixed expense" />
+        <Appbar.Content title={t('route.fixedExpense')} />
       </Appbar.Header>
       {loading ? (
         <LoadingScreen />

@@ -31,6 +31,7 @@ class FakeClient {
       'yearly_subscriptions',
       'month_fixed_expenses',
       'month_budgets',
+      'month_budget_plan_events',
       'income',
       'reserve_transfers',
       'transactions',
@@ -51,7 +52,8 @@ class FakeClient {
 
 class FakeBuilder {
   private filters: Array<[column: string, compare: 'gt' | 'in' | 'eq', value: unknown]> = [];
-  private orderSpec: { column: string; ascending: boolean } | null = null;
+  private orderSpecs: Array<{ column: string; ascending: boolean }> = [];
+  private rangeSpec: { from: number; to: number } | null = null;
 
   constructor(
     private readonly fakeClient: FakeClient,
@@ -78,8 +80,17 @@ class FakeBuilder {
   }
 
   order(column: string, options?: { ascending?: boolean }): this {
-    this.orderSpec = { column, ascending: options?.ascending !== false };
+    this.orderSpecs.push({ column, ascending: options?.ascending !== false });
     return this;
+  }
+
+  range(from: number, to: number): this {
+    this.rangeSpec = { from, to };
+    return this;
+  }
+
+  maybeSingle(): Promise<{ data: PostgrestRow | null; error: null }> {
+    return Promise.resolve({ data: this.run()[0] ?? null, error: null });
   }
 
   private matches(row: PostgrestRow): boolean {
@@ -100,13 +111,21 @@ class FakeBuilder {
   private run(): PostgrestRow[] {
     const table = this.fakeClient.tables.get(this.tableName) ?? new Map<string, PostgrestRow>();
     let rows = [...table.values()].filter((row) => this.matches(row));
-    if (this.orderSpec) {
-      const { column, ascending } = this.orderSpec;
+    if (this.orderSpecs.length > 0) {
       rows = rows.sort((a, b) => {
-        const av = String(a[column] ?? '');
-        const bv = String(b[column] ?? '');
-        return ascending ? av.localeCompare(bv) : bv.localeCompare(av);
+        for (const { column, ascending } of this.orderSpecs) {
+          const av = String(a[column] ?? '');
+          const bv = String(b[column] ?? '');
+          const compared = av.localeCompare(bv);
+          if (compared !== 0) {
+            return ascending ? compared : -compared;
+          }
+        }
+        return 0;
       });
+    }
+    if (this.rangeSpec) {
+      rows = rows.slice(this.rangeSpec.from, this.rangeSpec.to + 1);
     }
     return rows;
   }
@@ -296,6 +315,16 @@ describe('pullChanges', () => {
       active: true,
       updated_at: UPDATED,
     });
+    client.seed('month_budget_plan_events', {
+      uuid: 'event-1',
+      month_key: '2026-09',
+      kind: 'draw',
+      budget_uuid: null,
+      previous_amount_cents: 0,
+      new_amount_cents: 5000,
+      funded_budget_uuid: 'budget-1',
+      updated_at: UPDATED,
+    });
     client.seed('transactions', {
       uuid: 'tx-1',
       month_key: '2026-09',
@@ -310,7 +339,7 @@ describe('pullChanges', () => {
     });
 
     const result = await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
-    expect(result.pulled).toBeGreaterThanOrEqual(6);
+    expect(result.pulled).toBeGreaterThanOrEqual(7);
 
     const fixed = raw
       .prepare('SELECT id, uuid FROM fixed_expenses WHERE uuid = ?')
@@ -335,5 +364,201 @@ describe('pullChanges', () => {
       .get('mb-1') as { budget_id: number; active: number };
     expect(resolvedMb.budget_id).toBe(budget.id);
     expect(resolvedMb.active).toBe(1);
+
+    const resolvedEvent = raw
+      .prepare(
+        'SELECT budget_id, funded_budget_id FROM month_budget_plan_events WHERE uuid = ?'
+      )
+      .get('event-1') as {
+      budget_id: number | null;
+      funded_budget_id: number | null;
+    };
+    expect(resolvedEvent.budget_id).toBeNull();
+    expect(resolvedEvent.funded_budget_id).toBe(budget.id);
+  });
+
+  it('fetches a parent that is older than the incremental window', async () => {
+    const raw = freshDb();
+    const client = new FakeClient();
+    client.seed('months', {
+      uuid: 'month-1',
+      month_key: '2026-09',
+      allowance_cents: 50000,
+      starting_reserve_cents: 0,
+      ending_reserve_cents: null,
+      is_closed: false,
+      closed_at: null,
+      updated_at: UPDATED,
+    });
+    client.seed('budgets', {
+      uuid: 'budget-old',
+      name: 'Groceries',
+      default_amount_cents: 50000,
+      active: true,
+      sort_order: 0,
+      color: null,
+      updated_at: '2026-09-18T09:00:00.000Z',
+    });
+    client.seed('transactions', {
+      uuid: 'tx-new',
+      month_key: '2026-09',
+      date: '2026-09-18',
+      amount_cents: 3450,
+      budget_uuid: 'budget-old',
+      merchant: 'Groceries',
+      note: null,
+      origin_type: null,
+      origin_id: null,
+      updated_at: UPDATED,
+    });
+
+    await pullChanges(
+      client as never,
+      makeDbApi(raw) as never,
+      '2026-09-18T09:30:00.000Z'
+    );
+
+    const budget = raw
+      .prepare('SELECT id FROM budgets WHERE uuid = ?')
+      .get('budget-old') as { id: number } | undefined;
+    const tx = raw
+      .prepare('SELECT budget_id FROM transactions WHERE uuid = ?')
+      .get('tx-new') as { budget_id: number | null };
+    expect(budget).toBeDefined();
+    expect(tx.budget_id).toBe(budget?.id);
+  });
+
+  it('repairs a locally NULL nullable FK from the remote row', async () => {
+    const raw = freshDb();
+    raw.exec(
+      `INSERT INTO months (month_key, allowance_cents, starting_reserve_cents)
+       VALUES ('2026-09', 50000, 0)`
+    );
+    raw.exec(
+      `INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('pull_in_progress', '1')`
+    );
+    raw
+      .prepare(
+        `INSERT INTO transactions
+           (uuid, month_key, date, amount_cents, budget_id, merchant, updated_at)
+         VALUES (?, '2026-09', '2026-09-18', 3450, NULL, 'Groceries', ?)`
+      )
+      .run('tx-null-budget', UPDATED);
+    raw.exec(`UPDATE sync_meta SET value = '0' WHERE key = 'pull_in_progress'`);
+
+    const client = new FakeClient();
+    client.seed('budgets', {
+      uuid: 'budget-1',
+      name: 'Groceries',
+      default_amount_cents: 50000,
+      active: true,
+      sort_order: 0,
+      color: null,
+      updated_at: '2026-09-18T09:00:00.000Z',
+    });
+    client.seed('transactions', {
+      uuid: 'tx-null-budget',
+      month_key: '2026-09',
+      date: '2026-09-18',
+      amount_cents: 3450,
+      budget_uuid: 'budget-1',
+      merchant: 'Groceries',
+      note: null,
+      origin_type: null,
+      origin_id: null,
+      updated_at: UPDATED,
+    });
+
+    await pullChanges(
+      client as never,
+      makeDbApi(raw) as never,
+      '2026-09-19T00:00:00.000Z'
+    );
+
+    const budget = raw
+      .prepare('SELECT id FROM budgets WHERE uuid = ?')
+      .get('budget-1') as { id: number } | undefined;
+    const tx = raw
+      .prepare('SELECT budget_id FROM transactions WHERE uuid = ?')
+      .get('tx-null-budget') as { budget_id: number | null };
+    expect(budget).toBeDefined();
+    expect(tx.budget_id).toBe(budget?.id);
+  });
+
+  it('does not resurrect a FK the user cleared more recently than the remote row', async () => {
+    const raw = freshDb();
+    raw.exec(
+      `INSERT INTO months (month_key, allowance_cents, starting_reserve_cents)
+       VALUES ('2026-09', 50000, 0)`
+    );
+    raw.exec(
+      `INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('pull_in_progress', '1')`
+    );
+    raw
+      .prepare(
+        `INSERT INTO transactions
+           (uuid, month_key, date, amount_cents, budget_id, merchant, updated_at)
+         VALUES (?, '2026-09', '2026-09-18', 3450, NULL, 'Groceries', ?)`
+      )
+      .run('tx-cleared-budget', '2026-09-18T11:00:00.000Z');
+    raw.exec(`UPDATE sync_meta SET value = '0' WHERE key = 'pull_in_progress'`);
+
+    const client = new FakeClient();
+    client.seed('budgets', {
+      uuid: 'budget-1',
+      name: 'Groceries',
+      default_amount_cents: 50000,
+      active: true,
+      sort_order: 0,
+      color: null,
+      updated_at: '2026-09-18T09:00:00.000Z',
+    });
+    client.seed('transactions', {
+      uuid: 'tx-cleared-budget',
+      month_key: '2026-09',
+      date: '2026-09-18',
+      amount_cents: 3450,
+      budget_uuid: 'budget-1',
+      merchant: 'Groceries',
+      note: null,
+      origin_type: null,
+      origin_id: null,
+      updated_at: UPDATED,
+    });
+
+    await pullChanges(
+      client as never,
+      makeDbApi(raw) as never,
+      '2026-09-19T00:00:00.000Z'
+    );
+
+    const tx = raw
+      .prepare('SELECT budget_id FROM transactions WHERE uuid = ?')
+      .get('tx-cleared-budget') as { budget_id: number | null };
+    expect(tx.budget_id).toBeNull();
+  });
+
+  it('walks past the first PostgREST page', async () => {
+    const raw = freshDb();
+    const client = new FakeClient();
+    for (let index = 0; index < 501; index += 1) {
+      const suffix = String(index).padStart(3, '0');
+      client.seed('budgets', {
+        uuid: `budget-${suffix}`,
+        name: `Budget ${suffix}`,
+        default_amount_cents: 1000,
+        active: true,
+        sort_order: index,
+        color: null,
+        updated_at: UPDATED,
+      });
+    }
+
+    await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
+
+    const count = (
+      raw.prepare('SELECT COUNT(*) AS n FROM budgets').get() as { n: number }
+    ).n;
+    expect(count).toBe(501);
   });
 });

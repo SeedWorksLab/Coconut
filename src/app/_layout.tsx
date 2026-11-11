@@ -8,9 +8,11 @@ import { DataProvider, useAppData } from '../data/DataProvider';
 import { UpdateNotifier } from '../components/update-notifier';
 import { AutoTutorial } from '../components/auto-tutorial';
 import { MonthPlanningOverlay } from '../components/month-planning-overlay';
+import { I18nProvider, useI18n } from '../i18n';
 
 function ThemedContent() {
   const theme = useAppTheme();
+  const { t } = useI18n();
   const navigationTheme = buildNavigationTheme(theme);
 
   return (
@@ -28,81 +30,81 @@ function ThemedContent() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
             name="transaction/new"
-            options={{ title: 'New Transaction', presentation: 'modal' }}
+            options={{ title: t('screen.newTransaction'), presentation: 'modal' }}
           />
           <Stack.Screen
             name="transaction/[id]"
-            options={{ title: 'Transaction', presentation: 'modal' }}
+            options={{ title: t('screen.transaction'), presentation: 'modal' }}
           />
           <Stack.Screen
             name="income/new"
-            options={{ title: 'New One-off Income', presentation: 'modal' }}
+            options={{ title: t('screen.newIncome'), presentation: 'modal' }}
           />
           <Stack.Screen
             name="income/[id]"
-            options={{ title: 'One-off Income', presentation: 'modal' }}
+            options={{ title: t('screen.income'), presentation: 'modal' }}
           />
           <Stack.Screen
             name="fixed-expense/new"
-            options={{ title: 'New Fixed Expense', headerShown: false }}
+            options={{ title: t('screen.newFixedExpense'), headerShown: false }}
           />
           <Stack.Screen
             name="fixed-expense/[id]"
-            options={{ title: 'Fixed Expense', headerShown: false }}
+            options={{ title: t('screen.fixedExpense'), headerShown: false }}
           />
-          <Stack.Screen name="budget/new" options={{ title: 'New Budget', headerShown: false }} />
-          <Stack.Screen name="budget/[id]" options={{ title: 'Budget', headerShown: false }} />
+          <Stack.Screen name="budget/new" options={{ title: t('screen.newBudget'), headerShown: false }} />
+          <Stack.Screen name="budget/[id]" options={{ title: t('screen.budget'), headerShown: false }} />
           <Stack.Screen
             name="subscription/new"
-            options={{ title: 'New Subscription', headerShown: false }}
+            options={{ title: t('screen.newSubscription'), headerShown: false }}
           />
           <Stack.Screen
             name="subscription/[id]"
-            options={{ title: 'Subscription', headerShown: false }}
+            options={{ title: t('screen.subscription'), headerShown: false }}
           />
-          <Stack.Screen name="about" options={{ title: 'About', headerShown: false }} />
-          <Stack.Screen name="sync" options={{ title: 'Cloud Sync' }} />
+          <Stack.Screen name="about" options={{ title: t('screen.about'), headerShown: false }} />
+          <Stack.Screen name="sync" options={{ title: t('screen.cloudSync') }} />
           <Stack.Screen
             name="shared/expense"
-            options={{ title: 'Shared Expense', presentation: 'modal' }}
+            options={{ title: t('screen.sharedExpense'), presentation: 'modal' }}
           />
-          <Stack.Screen name="shared/report/[id]" options={{ title: 'Shared Report' }} />
-          <Stack.Screen name="shared/balances" options={{ title: 'Balances' }} />
-          <Stack.Screen name="whats-new" options={{ title: "What's New", headerShown: false }} />
+          <Stack.Screen name="shared/report/[id]" options={{ title: t('screen.sharedReport') }} />
+          <Stack.Screen name="shared/balances" options={{ title: t('screen.balances') }} />
+          <Stack.Screen name="whats-new" options={{ title: t('screen.whatsNew'), headerShown: false }} />
           <Stack.Screen
             name="budget-transactions/[budgetId]"
-            options={{ title: 'Budget Transactions', presentation: 'modal' }}
+            options={{ title: t('screen.budgetTransactions'), presentation: 'modal' }}
           />
-          <Stack.Screen name="monthly-history" options={{ title: 'Monthly History' }} />
-          <Stack.Screen name="monthly-report/[monthKey]" options={{ title: 'Monthly Report' }} />
-          <Stack.Screen name="planning/month" options={{ title: "This Month's Plan" }} />
+          <Stack.Screen name="monthly-history" options={{ title: t('screen.monthlyHistory') }} />
+          <Stack.Screen name="monthly-report/[monthKey]" options={{ title: t('screen.monthlyReport') }} />
+          <Stack.Screen name="planning/month" options={{ title: t('screen.thisMonthPlan') }} />
           <Stack.Screen
             name="planning/fixed-expenses"
-            options={{ title: 'Fixed Expenses' }}
+            options={{ title: t('screen.fixedExpenses') }}
           />
           <Stack.Screen
             name="planning/budgets"
-            options={{ title: 'Flexible Budgets' }}
+            options={{ title: t('screen.flexibleBudgets') }}
           />
           <Stack.Screen
             name="planning/subscriptions"
-            options={{ title: 'Subscriptions' }}
+            options={{ title: t('screen.subscriptions') }}
           />
           <Stack.Screen
             name="planning/reserve"
-            options={{ title: 'Savings Reserve' }}
+            options={{ title: t('screen.savingsReserve') }}
           />
           <Stack.Screen
             name="planning/close-month"
-            options={{ title: 'Close Month', headerShown: false }}
+            options={{ title: t('screen.closeMonth'), headerShown: false }}
           />
           <Stack.Screen
             name="planning/backup"
-            options={{ title: 'Backup & Restore' }}
+            options={{ title: t('screen.backupRestore') }}
           />
           <Stack.Screen
             name="tutorial"
-            options={{ title: 'Coconut Tour', presentation: 'fullScreenModal', headerShown: false }}
+            options={{ title: t('screen.coconutTour'), presentation: 'fullScreenModal', headerShown: false }}
           />
         </Stack>
         <UpdateNotifier />
@@ -118,7 +120,9 @@ function ThemedApp() {
 
   return (
     <CoconutThemeProvider preference={settings.themeMode}>
-      <ThemedContent />
+      <I18nProvider language={settings.language}>
+        <ThemedContent />
+      </I18nProvider>
     </CoconutThemeProvider>
   );
 }

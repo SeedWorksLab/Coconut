@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { tutorialPages } from '../../src/config/tutorial';
+import { en } from '../../src/i18n/en';
 
 const GLYPHMAP = join(
   process.cwd(),
@@ -22,19 +23,19 @@ describe('the tutorial tour', () => {
 
   it('gives every page a title and some body copy', () => {
     for (const page of tutorialPages) {
-      expect(page.title.length).toBeGreaterThan(0);
-      expect(page.body.length).toBeGreaterThan(0);
+      expect(en[page.titleKey].length).toBeGreaterThan(0);
+      expect(en[page.bodyKey].length).toBeGreaterThan(0);
     }
   });
 
   it('starts the month before it describes anything spent in it', () => {
-    const titles = tutorialPages.map((page) => page.title);
+    const titles = tutorialPages.map((page) => en[page.titleKey]);
     expect(titles.indexOf('Starting a Month')).toBeLessThan(titles.indexOf('Transactions'));
     expect(titles.indexOf('Closing a Month')).toBeLessThan(titles.indexOf('Statistics'));
     expect(titles.indexOf('Closing a Month')).toBeGreaterThan(titles.indexOf('Flexible Budgets'));
   });
 
   it('ends on the page that tells the user to get started', () => {
-    expect(tutorialPages[tutorialPages.length - 1].title).toBe('Ready to start?');
+    expect(en[tutorialPages[tutorialPages.length - 1].titleKey]).toBe('Ready to start?');
   });
 });

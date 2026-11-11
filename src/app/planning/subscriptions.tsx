@@ -7,12 +7,13 @@ import { formatCents } from '../../utils/currency';
 import { EVERGREEN_MONTH_KEY, monthLabel } from '../../utils/date';
 import { LoadingScreen } from '../../components/loading-screen';
 import { DragHandle, ReorderableList } from '../../components/reorderable-list';
+import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import type { Subscription } from '../../models';
 
-function periodLabel(item: Subscription): string {
+function periodLabel(item: Subscription, ongoing: string): string {
   if (item.endMonth === EVERGREEN_MONTH_KEY) {
-    return 'Ongoing';
+    return ongoing;
   }
   return `${monthLabel(item.startMonth)} \u2013 ${monthLabel(item.endMonth)}`;
 }
@@ -20,6 +21,7 @@ function periodLabel(item: Subscription): string {
 export default function SubscriptionsScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const { t } = useI18n();
   const { ready, settings, allSubscriptions, reorderSubscriptions } =
     useAppData();
 
@@ -36,10 +38,10 @@ export default function SubscriptionsScreen() {
         keyExtractor={(item) => String(item.id)}
         rowHeight={64}
         onReorder={(next) => void reorderSubscriptions(next.map((item) => item.id))}
-        ListHeaderComponent={<List.Subheader>Subscriptions</List.Subheader>}
+        ListHeaderComponent={<List.Subheader>{t('settings.subscriptions')}</List.Subheader>}
         ListEmptyComponent={
           <PaperText variant="bodyMedium" style={styles.empty}>
-            No subscriptions yet. Add a paid-over-time service to spread its cost monthly.
+            {t('planning.noSubscriptions')}
           </PaperText>
         }
         renderRow={(item, { isDragged, handleProps }) => (
@@ -58,13 +60,16 @@ export default function SubscriptionsScreen() {
                 : null,
             ]}
           >
-            <DragHandle isDragged={isDragged} handleProps={handleProps} label={`Reorder ${item.name}`} />
+            <DragHandle isDragged={isDragged} handleProps={handleProps} label={t('planning.reorder', { name: item.name })} />
             <List.Item
               title={item.name}
               description={
                 item.deductMonthly
-                  ? `${formatCents(item.monthlyAmountCents, symbol)} per month \u00b7 ${periodLabel(item)}`
-                  : periodLabel(item)
+                  ? t('planning.perMonth', {
+                      amount: formatCents(item.monthlyAmountCents, symbol),
+                      period: periodLabel(item, t('overview.ongoing')),
+                    })
+                  : periodLabel(item, t('overview.ongoing'))
               }
               right={(props) => (
                 <PaperText {...props} style={styles.rowRight}>
@@ -80,7 +85,7 @@ export default function SubscriptionsScreen() {
       />
       <FAB
         icon="plus"
-        label="Add"
+        label={t('common.add')}
         style={styles.fab}
         onPress={() => router.push('/subscription/new')}
       />

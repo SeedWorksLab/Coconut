@@ -6,6 +6,7 @@ import { Button, Text } from 'react-native-paper';
 import { useAppData } from '../../data/DataProvider';
 import { MonthPlanningEditor } from '../../components/month-planning-editor';
 import { LoadingScreen } from '../../components/loading-screen';
+import { useI18n } from '../../i18n';
 
 /**
  * Re-plans the month that is already running.
@@ -20,6 +21,7 @@ import { LoadingScreen } from '../../components/loading-screen';
  */
 export default function MonthPlanScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const { ready, currentMonth, replanMonth } = useAppData();
 
   if (!ready) {
@@ -30,9 +32,9 @@ export default function MonthPlanScreen() {
     return (
       <View style={styles.centered}>
         <Text variant="bodyMedium" style={styles.message}>
-          There is no month to plan yet. Start one from the overview.
+          {t('planning.noMonthToPlan')}
         </Text>
-        <Button onPress={() => router.back()}>Back</Button>
+        <Button onPress={() => router.back()}>{t('common.back')}</Button>
       </View>
     );
   }

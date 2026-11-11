@@ -11,6 +11,7 @@ import { FadeIn } from '../../components/fade-in';
 import { MonthSwitcher } from '../../components/month-switcher';
 import { ScreenFade } from '../../components/screen-fade';
 import { SharedExpenseTraceLabel } from '../../components/shared-expense-trace';
+import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import type { MonthKey, Transaction } from '../../models';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -25,6 +26,7 @@ export default function BudgetTransactionsScreen() {
   const budgetId = Number(budgetIdParam);
   const router = useRouter();
   const theme = useAppTheme();
+  const { t, language } = useI18n();
   const { ready, settings, currentDashboard, dashboardFor, budgets } = useAppData();
   const budget = budgets.find((entry) => entry.id === budgetId) ?? null;
 
@@ -82,11 +84,14 @@ export default function BudgetTransactionsScreen() {
       if (last && last.data[last.data.length - 1].date === transaction.date) {
         last.data.push(transaction);
       } else {
-        groups.push({ title: relativeDayLabel(transaction.date), data: [transaction] });
+        groups.push({
+          title: relativeDayLabel(transaction.date, undefined, language),
+          data: [transaction],
+        });
       }
     }
     return groups;
-  }, [transactions]);
+  }, [transactions, language]);
 
   const total = transactions.reduce((sum, transaction) => sum + transaction.amountCents, 0);
 
@@ -94,7 +99,7 @@ export default function BudgetTransactionsScreen() {
     <ScreenFade>
       <Stack.Screen
         options={{
-          title: budget?.name ?? 'Budget',
+          title: budget?.name ?? t('budgetTx.defaultTitle'),
           headerRight: () => (
             <MonthSwitcher value={monthKey} onChange={changeMonth} max={todayMonthKey} />
           ),
@@ -105,7 +110,7 @@ export default function BudgetTransactionsScreen() {
       ) : (
         <View style={styles.container}>
           <Text style={styles.header} variant="titleMedium">
-            {dashboard ? `${transactions.length} transactions` : ''}
+            {dashboard ? t('budgetTx.count', { count: transactions.length }) : ''}
             {dashboard && transactions.length > 0
               ? ` • ${formatCents(total, settings.currencySymbol)}`
               : ''}
@@ -121,11 +126,7 @@ export default function BudgetTransactionsScreen() {
               ListEmptyComponent={
                 <EmptyState
                   icon={<Text variant="displaySmall">🍪</Text>}
-                  message={
-                    viewingCurrentMonth
-                      ? 'No transactions in this budget this month.'
-                      : 'No transactions in this budget in this month.'
-                  }
+                  message={t('budgetTx.empty')}
                 />
               }
               renderSectionHeader={({ section }) => (
@@ -142,7 +143,7 @@ export default function BudgetTransactionsScreen() {
                         <SharedExpenseTraceLabel
                           originId={item.originId ?? null}
                           symbol={settings.currencySymbol}
-                          fallback={item.note ?? 'Shared expense'}
+                          fallback={item.note ?? t('budgetTx.fallbackShared')}
                         />
                       ) : (
                         item.note ?? undefined

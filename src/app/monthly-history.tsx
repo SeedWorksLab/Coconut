@@ -10,11 +10,13 @@ import { getClosedMonthRecords } from '../database/queries';
 import { formatCents } from '../utils/currency';
 import { shortMonthLabel } from '../utils/date';
 import { LoadingScreen } from '../components/loading-screen';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
 
 export default function MonthlyHistoryScreen() {
   const { ready, settings } = useAppData();
   const theme = useAppTheme();
+  const { t } = useI18n();
   const router = useRouter();
   const [records, setRecords] = useState<ClosedMonthRecord[]>([]);
 
@@ -37,7 +39,7 @@ export default function MonthlyHistoryScreen() {
     <KeyboardAwareScrollView contentContainerStyle={styles.container}>
       {records.length === 0 ? (
         <Text variant="bodyMedium" style={styles.empty}>
-          Close a month to generate its report here.
+          {t('history.empty')}
         </Text>
       ) : (
         records
@@ -49,7 +51,9 @@ export default function MonthlyHistoryScreen() {
               <Card key={record.monthKey} mode="elevated" style={styles.card}>
                 <List.Item
                   title={shortMonthLabel(record.monthKey)}
-                  description={`Spent ${formatCents(record.spendingCents, symbol)}`}
+                  description={t('history.spent', {
+                    amount: formatCents(record.spendingCents, symbol),
+                  })}
                   left={(props) => <List.Icon {...props} icon="file-chart-outline" />}
                   right={() => (
                     <View style={styles.right}>
@@ -63,7 +67,7 @@ export default function MonthlyHistoryScreen() {
                         {formatCents(record.reserveAdjustmentCents, symbol)}
                       </Text>
                       <Text variant="labelSmall" style={styles.rightHint}>
-                        reserve
+                        {t('history.reserve')}
                       </Text>
                     </View>
                   )}

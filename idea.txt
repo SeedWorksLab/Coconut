@@ -449,8 +449,10 @@ components.
 
 ### 11.2 Optional synchronization to Supabase
 
-The user may enable optional synchronization to their own Supabase project so the same
-personal dataset is available across their own devices.
+The user may enable optional synchronization through SeedWorks Cloud, the shared SeedWorks
+Supabase project, so the same personal dataset is available across their own devices.
+Self-hosters may point Coconut at their own Supabase project provisioned from the central
+SeedWorks migrations instead.
 
 - Sync is opt-in. Without it the application is completely local and makes no network
   requests.
@@ -461,8 +463,9 @@ personal dataset is available across their own devices.
   device continues to read and write locally only.
 - Sync mirrors row-level changes, not the whole database on every write. Each synced row
   carries a stable UUID and a timestamp and follows last-write-wins conflict resolution.
-- The Supabase project is owned by the user and used only for this mirror. No third party,
-  tracking, or analytics is involved.
+- SeedWorks Cloud is the default managed backend for official builds. Self-hosters can use
+  their own Supabase project instead; either way it is used only for this mirror. No
+  third-party tracking or analytics is involved.
 
 ### 11.3 Sync lifecycle
 
@@ -504,9 +507,9 @@ independently in two places.
 
 ### 12.2 Authentication and security
 
-One Coconut Supabase project hosts all users. There are no per-user Supabase projects,
-and users do not share one Supabase Auth account; each Coconut user is a separate
-Supabase Auth user.
+One SeedWorks Cloud Supabase project hosts all official-build users. Users do not share
+one Supabase Auth account; each Coconut user is a separate Supabase Auth user. Self-hosted
+deployments provision the same schema layout in their own project.
 
 Supabase Row Level Security distinguishes personal rows from shared rows:
 
@@ -644,7 +647,8 @@ Synchronization and backup are separate features.
 - Avoids unnecessary permissions.
 
 Financial information leaves the device only when the user explicitly enables
-synchronization to their own Supabase project; the app never sends data anywhere else.
+synchronization through SeedWorks Cloud or their own Supabase project; the app never sends
+data anywhere else.
 
 ---
 
@@ -663,10 +667,11 @@ synchronization to their own Supabase project; the app never sends data anywhere
 
 Architecture:
 - Business logic, database access, sync, and UI have clear separation.
-- Supabase is the only permitted backend: an optional sync mirror for the user's own
-  data and the host for Shared Expenses. Supabase Auth identifies users only for these
-  optional features; Row Level Security separates personal and shared rows. No other
-  backend, provider, or analytics is used.
+- Supabase is the only permitted backend: SeedWorks Cloud by default, or a self-hosted
+  Supabase project, as an optional sync mirror for the user's own data and the host for
+  Shared Expenses. Supabase Auth identifies users only for these optional features; Row
+  Level Security separates personal and shared rows. No other backend, provider, or
+  analytics is used.
 - Small dependency footprint.
 - Favor Expo-supported functionality.
 - The application must build and run as a local desktop web application and remain

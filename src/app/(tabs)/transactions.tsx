@@ -4,6 +4,7 @@ import { Tabs, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, FAB, List, Searchbar, Text } from 'react-native-paper';
 import { useAppData, type MonthDashboard } from '../../data/DataProvider';
+import { useI18n } from '../../i18n';
 import { formatCents } from '../../utils/currency';
 import { currentMonthKey, relativeDayLabel } from '../../utils/date';
 import { LoadingScreen } from '../../components/loading-screen';
@@ -24,6 +25,7 @@ export default function TransactionsScreen() {
   const { ready, settings, currentMonth, currentDashboard, dashboardFor } = useAppData();
   const router = useRouter();
   const theme = useAppTheme();
+  const { t, language } = useI18n();
   const [query, setQuery] = useState('');
   const todayMonthKey = currentMonthKey();
   // The app works on the active month, which advances on closing rather than
@@ -95,11 +97,11 @@ export default function TransactionsScreen() {
       if (last && last.data[last.data.length - 1].date === transaction.date) {
         last.data.push(transaction);
       } else {
-        groups.push({ title: relativeDayLabel(transaction.date), data: [transaction] });
+        groups.push({ title: relativeDayLabel(transaction.date, undefined, language), data: [transaction] });
       }
     }
     return groups;
-  }, [filtered]);
+  }, [filtered, language]);
 
   const total = dashboard?.transactions.reduce(
     (sum, transaction) => sum + transaction.amountCents,
@@ -120,13 +122,13 @@ export default function TransactionsScreen() {
       ) : (
         <View style={styles.container}>
         <Text style={styles.header} variant="titleMedium">
-          {dashboard ? `${dashboard.transactions.length} transactions` : ''}
+          {dashboard ? t('transactions.count', { count: dashboard.transactions.length }) : ''}
           {dashboard && dashboard.transactions.length > 0
             ? ` • ${formatCents(total, settings.currencySymbol)}`
             : ''}
         </Text>
         <Searchbar
-          placeholder="Search transactions"
+          placeholder={t('transactions.searchPlaceholder')}
           value={query}
           onChangeText={setQuery}
           style={styles.search}
@@ -144,13 +146,13 @@ export default function TransactionsScreen() {
                 icon={<Text variant="displaySmall">🛒</Text>}
                 message={
                   query.trim().length > 0
-                    ? 'No transactions match your search.'
+                    ? t('transactions.noMatch')
                     : viewingActiveMonth
-                      ? 'No transactions this month yet.'
-                      : 'No transactions in this month.'
+                      ? t('transactions.noneThisMonth')
+                      : t('transactions.noneInMonth')
                 }
                 actionLabel={
-                  query.trim().length > 0 || !viewingActiveMonth ? undefined : 'Add a transaction'
+                  query.trim().length > 0 || !viewingActiveMonth ? undefined : t('transactions.add')
                 }
                 onAction={
                   query.trim().length > 0 || !viewingActiveMonth
@@ -173,7 +175,7 @@ export default function TransactionsScreen() {
                       <SharedExpenseTraceLabel
                         originId={item.originId ?? null}
                         symbol={settings.currencySymbol}
-                        fallback={item.note ?? 'Shared expense'}
+                        fallback={item.note ?? t('transactions.sharedExpense')}
                       />
                     ) : (
                       item.note ?? undefined

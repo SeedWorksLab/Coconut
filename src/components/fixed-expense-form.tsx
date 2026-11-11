@@ -7,22 +7,23 @@ import type {
   FixedExpenseKind,
 } from '../models';
 import { AmountInput } from './amount-input';
+import { useI18n, type TranslationKey } from '../i18n';
 import { useAppTheme } from '../theme';
 
 export type FixedExpenseDraft = Omit<FixedExpense, 'id' | 'sortOrder'> & { sortOrder: number };
 
-const STRATEGY_LABELS: Record<EstimationStrategy, string> = {
-  manual: 'Manual',
-  'last-month': 'Last month',
-  average: 'Recent average',
-  'history-average': 'All history',
+const STRATEGY_LABEL_KEYS: Record<EstimationStrategy, TranslationKey> = {
+  manual: 'fixed.manual',
+  'last-month': 'fixed.lastMonth',
+  average: 'fixed.recentAverage',
+  'history-average': 'fixed.allHistory',
 };
 
-const STRATEGY_HINTS: Record<EstimationStrategy, string> = {
-  manual: 'Use the expected amount as-is.',
-  'last-month': 'Estimate from the last actual amount.',
-  average: 'Average of the last few actual amounts.',
-  'history-average': 'Average of all recorded actuals.',
+const STRATEGY_HINT_KEYS: Record<EstimationStrategy, TranslationKey> = {
+  manual: 'fixed.manualHint',
+  'last-month': 'fixed.lastMonthHint',
+  average: 'fixed.recentAverageHint',
+  'history-average': 'fixed.allHistoryHint',
 };
 
 interface Props {
@@ -48,6 +49,7 @@ export function FixedExpenseForm({ initialData, currencySymbol, submitting, onSu
   const [strategyMenu, setStrategyMenu] = useState(false);
   const [amountError, setAmountError] = useState<string | null>(null);
   const theme = useAppTheme();
+  const { t } = useI18n();
 
   const isVariable = kind === 'variable';
   const averageMonthsNumber = Number(averageMonths);
@@ -61,11 +63,11 @@ export function FixedExpenseForm({ initialData, currencySymbol, submitting, onSu
       return;
     }
     if (expectedAmountCents === null) {
-      setAmountError('Enter a valid amount.');
+      setAmountError(t('form.enterValidAmount'));
       return;
     }
     if (expectedAmountCents < 0) {
-      setAmountError('Amount cannot be negative.');
+      setAmountError(t('settings.amountCannotBeNegative'));
       return;
     }
     setAmountError(null);
@@ -85,14 +87,14 @@ export function FixedExpenseForm({ initialData, currencySymbol, submitting, onSu
   return (
     <View style={styles.container}>
       <TextInput
-        label="Name"
+        label={t('form.name')}
         value={name}
         onChangeText={setName}
         mode="outlined"
         style={styles.field}
       />
       <AmountInput
-        label={isVariable ? 'Expected amount' : 'Amount'}
+        label={isVariable ? t('fixed.expectedAmount') : t('form.amount')}
         value={expectedAmountCents}
         onChange={setExpectedAmountCents}
         prefix={currencySymbol}
@@ -103,8 +105,8 @@ export function FixedExpenseForm({ initialData, currencySymbol, submitting, onSu
         value={kind}
         onValueChange={(value) => setKind(value as FixedExpenseKind)}
         buttons={[
-          { value: 'variable', label: 'Variable' },
-          { value: 'fixed', label: 'Fixed' },
+          { value: 'variable', label: t('fixed.variable') },
+          { value: 'fixed', label: t('fixed.fixed') },
         ]}
         style={styles.field}
       />
@@ -116,17 +118,17 @@ export function FixedExpenseForm({ initialData, currencySymbol, submitting, onSu
             onDismiss={() => setStrategyMenu(false)}
             anchor={
               <List.Item
-                title="Estimation strategy"
-                description={STRATEGY_HINTS[strategy]}
+                title={t('fixed.estimationStrategy')}
+                description={t(STRATEGY_HINT_KEYS[strategy])}
                 right={(props) => <List.Icon {...props} icon="chevron-down" />}
                 onPress={() => setStrategyMenu(true)}
               />
             }
           >
-            {(Object.keys(STRATEGY_LABELS) as EstimationStrategy[]).map((key) => (
+            {(Object.keys(STRATEGY_LABEL_KEYS) as EstimationStrategy[]).map((key) => (
               <Menu.Item
                 key={key}
-                title={STRATEGY_LABELS[key]}
+                title={t(STRATEGY_LABEL_KEYS[key])}
                 onPress={() => {
                   setStrategy(key);
                   setStrategyMenu(false);
@@ -137,7 +139,7 @@ export function FixedExpenseForm({ initialData, currencySymbol, submitting, onSu
 
           {strategy === 'average' && (
             <TextInput
-              label="Months to average"
+              label={t('fixed.monthsToAverage')}
               value={averageMonths}
               onChangeText={setAverageMonths}
               keyboardType="number-pad"
@@ -149,8 +151,8 @@ export function FixedExpenseForm({ initialData, currencySymbol, submitting, onSu
       )}
 
       <List.Item
-        title="Active"
-        description="Included in estimates and month planning"
+        title={t('fixed.active')}
+        description={t('fixed.activeDescription')}
         right={() => <Switch value={active} onValueChange={setActive} />}
       />
 
@@ -161,14 +163,14 @@ export function FixedExpenseForm({ initialData, currencySymbol, submitting, onSu
         loading={submitting}
         style={styles.submit}
       >
-        Save
+        {t('common.save')}
       </Button>
       {!hasName || !hasAverageMonths ? (
         <Text variant="bodySmall" style={[styles.generalError, { color: theme.colors.error }]}>
           {!hasName
-            ? 'Enter a name.'
+            ? t('form.enterName')
             : !hasAverageMonths
-              ? 'Months to average must be a whole number greater than zero.'
+              ? t('fixed.monthsError')
               : null}
         </Text>
       ) : null}

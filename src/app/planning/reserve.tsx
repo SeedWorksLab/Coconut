@@ -6,6 +6,7 @@ import { Button, Card, List, Portal, Text } from 'react-native-paper';
 import { useAppData } from '../../data/DataProvider';
 import { formatCents } from '../../utils/currency';
 import { monthLabel } from '../../utils/date';
+import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import { StatCard } from '../../components/stat-card';
 import { AmountInput } from '../../components/amount-input';
@@ -16,6 +17,7 @@ import { ScreenToast } from '../../components/screen-toast';
 export default function ReserveScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const { t } = useI18n();
   const {
     ready,
     settings,
@@ -44,22 +46,24 @@ export default function ReserveScreen() {
         <>
           <View style={styles.statRow}>
             <StatCard
-              label="Starting reserve"
+              label={t('reserve.startingReserve')}
               value={projection.startingReserveCents}
               format={(v) => formatCents(v, symbol)}
             />
             <StatCard
-              label="Ending reserve"
+              label={t('reserve.endingReserve')}
               value={projection.endingReserveCents}
               format={(v) => formatCents(v, symbol)}
             />
           </View>
           <View style={styles.statRow}>
             <StatCard
-              label="Month surplus"
+              label={t('reserve.monthSurplus')}
               value={projection.adjustmentCents}
               format={(v) => (v >= 0 ? '+' : '') + formatCents(v, symbol)}
-              sub={projection.overspent ? 'Spending above allowance draws the reserve' : 'Unused allowance stays in the reserve'}
+              sub={
+                projection.overspent ? t('reserve.overspent') : t('reserve.unusedStays')
+              }
               tone={projection.overspent ? 'bad' : 'good'}
             />
           </View>
@@ -68,32 +72,32 @@ export default function ReserveScreen() {
         <Card mode="elevated" style={styles.card}>
           <Card.Content>
             <Text variant="bodyMedium">
-              No month is open yet, so there is nothing to project. Start a month to see
-              where your reserve stands and what it is expected to do this month.
+              {t('reserve.noMonth')}
             </Text>
             <Button mode="contained" style={styles.button} onPress={() => router.replace('/')}>
-              Start a month
+              {t('reserve.startMonth')}
             </Button>
           </Card.Content>
         </Card>
       )}
         <Card mode="elevated" style={styles.card}>
           <Card.Title
-            title="Reserve history"
-            subtitle="Every automatic adjustment, recorded when a month was closed"
+            title={t('reserve.historyTitle')}
+            subtitle={t('reserve.historySubtitle')}
           />
           <Card.Content>
             {reserveHistory.length === 0 ? (
               <Text variant="bodyMedium" style={styles.empty}>
-                Nothing recorded yet. Closing a month applies its adjustment and
-                writes it here.
+                {t('reserve.nothingRecorded')}
               </Text>
             ) : (
               reserveHistory.map((entry) => (
                 <List.Item
                   key={entry.id}
                   title={monthLabel(entry.monthKey)}
-                  description={entry.direction === 'to-reserve' ? 'Added to the reserve' : 'Drawn from the reserve'}
+                  description={
+                    entry.direction === 'to-reserve' ? t('reserve.added') : t('reserve.drawn')
+                  }
                   left={(props) => (
                     <List.Icon
                       {...props}
@@ -120,11 +124,11 @@ export default function ReserveScreen() {
         </Card>
 
         <Card mode="elevated" style={styles.card}>
-          <Card.Title title="Reserve settings" />
+          <Card.Title title={t('reserve.settings')} />
         <Card.Content>
           <List.Item
-            title="Initial reserve"
-            description="The balance your reserve starts with. Sets this month's starting reserve and the first month when there is no history."
+            title={t('reserve.initial')}
+            description={t('reserve.initialDescription')}
             right={(props) => <List.Icon {...props} icon="chevron-right" />}
             onPress={() => {
               setInitialDraft(settings.initialReserveCents);
@@ -137,10 +141,10 @@ export default function ReserveScreen() {
 
       <Portal>
         <AppDialog visible={initialDialog} onDismiss={() => setInitialDialog(false)}>
-          <AppDialog.Title>Initial reserve</AppDialog.Title>
+          <AppDialog.Title>{t('reserve.initial')}</AppDialog.Title>
           <AppDialog.Content>
             <AmountInput
-              label="Initial reserve"
+              label={t('reserve.initial')}
               value={initialDraft}
               onChange={setInitialDraft}
               prefix={symbol}
@@ -148,24 +152,24 @@ export default function ReserveScreen() {
             />
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setInitialDialog(false)}>Cancel</Button>
+            <Button onPress={() => setInitialDialog(false)}>{t('common.cancel')}</Button>
             <Button
               onPress={async () => {
                 if (initialDraft === null) {
-                  setInitialError('Enter a valid amount.');
+                  setInitialError(t('form.enterValidAmount'));
                   return;
                 }
                 if (initialDraft < 0) {
-                  setInitialError('Amount cannot be negative.');
+                  setInitialError(t('settings.amountCannotBeNegative'));
                   return;
                 }
                 setInitialError(null);
                 await setInitialReserve(initialDraft);
                 setInitialDialog(false);
-                setToast('Reserve balance updated');
+                setToast(t('reserve.updated'));
               }}
             >
-              Save
+              {t('common.save')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>

@@ -5,9 +5,11 @@ import { useAppData } from '../../data/DataProvider';
 import { remainingForBudget } from '../../services/allowance-service';
 import { BudgetForm } from '../../components/budget-form';
 import { LoadingScreen } from '../../components/loading-screen';
+import { useI18n } from '../../i18n';
 
 export default function NewBudgetScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const { ready, settings, currentMonth, currentDashboard, budgets, addBudget } = useAppData();
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,7 +35,7 @@ export default function NewBudgetScreen() {
     <>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="New budget" />
+        <Appbar.Content title={t('route.newBudget')} />
       </Appbar.Header>
       <BudgetForm
         initialData={null}

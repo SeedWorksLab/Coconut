@@ -22,6 +22,7 @@ import type {
   SharedSpaceMember,
 } from '../../models';
 import { useAppData } from '../../data/DataProvider';
+import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
 import { formatCents } from '../../utils/currency';
 import { DAYJS_STORE_DATE_FORMAT, relativeDayLabel } from '../../utils/date';
@@ -68,6 +69,7 @@ export default function SharedScreen() {
   const { ready, refresh, syncSharedAndRefresh, settings } = useAppData();
   const theme = useAppTheme();
   const router = useRouter();
+  const { t, language } = useI18n();
 
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [spaces, setSpaces] = useState<SharedSpace[]>([]);
@@ -136,8 +138,8 @@ export default function SharedScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void reload().catch(() => setToast('Could not load shared spaces'));
-    }, [reload])
+      void reload().catch(() => setToast(t('shared.loadError')));
+    }, [reload, t])
   );
 
   const handlePullRefresh = useCallback(async (): Promise<void> => {
@@ -145,12 +147,12 @@ export default function SharedScreen() {
     try {
       await syncSharedAndRefresh();
     } catch {
-      setToast('Could not sync with the shared space');
+      setToast(t('shared.syncError'));
     } finally {
       setSyncing(false);
       await reload();
     }
-  }, [reload, syncSharedAndRefresh]);
+  }, [reload, syncSharedAndRefresh, t]);
 
   const memberNames = useMemo(
     () => new Map(members.map((member) => [member.id, sharedMemberName(member)])),
@@ -185,11 +187,11 @@ export default function SharedScreen() {
       if (last && last.data[last.data.length - 1].expense.date === item.expense.date) {
         last.data.push(item);
       } else {
-        groups.push({ title: relativeDayLabel(item.expense.date), data: [item] });
+        groups.push({ title: relativeDayLabel(item.expense.date, undefined, language), data: [item] });
       }
     }
     return groups;
-  }, [filtered]);
+  }, [filtered, language]);
 
   const total = expenses.reduce((sum, { expense }) => sum + expense.totalAmountCents, 0);
 
@@ -221,7 +223,7 @@ export default function SharedScreen() {
       await reload();
       await refresh();
     } catch {
-      setToast('Could not create the shared space');
+      setToast(t('shared.createError'));
     } finally {
       setBusy(false);
     }
@@ -239,7 +241,7 @@ export default function SharedScreen() {
       await loadSpace(selectedId);
       await refresh();
     } catch {
-      setToast('Could not send the invite');
+      setToast(t('shared.inviteError'));
     } finally {
       setBusy(false);
     }
@@ -260,7 +262,7 @@ export default function SharedScreen() {
       await reload();
       await refresh();
     } catch {
-      setToast('Could not accept the invite');
+      setToast(t('shared.acceptError'));
     } finally {
       setBusy(false);
     }
@@ -285,7 +287,7 @@ export default function SharedScreen() {
       await reload();
       await refresh();
     } catch {
-      setToast('Could not rename the space');
+      setToast(t('shared.renameError'));
     } finally {
       setBusy(false);
     }
@@ -303,7 +305,7 @@ export default function SharedScreen() {
       await loadSpace(selectedId);
       await refresh();
     } catch {
-      setToast('Could not remove the member');
+      setToast(t('shared.removeMemberError'));
     } finally {
       setBusy(false);
     }
@@ -319,14 +321,14 @@ export default function SharedScreen() {
     try {
       const left = await leaveSharedSpace(memberId, sessionUser.id);
       if (!left) {
-        setToast('The owner cannot leave a shared space');
+        setToast(t('shared.ownerCannotLeave'));
         return;
       }
       selectedRef.current = null;
       await reload();
       await refresh();
     } catch {
-      setToast('Could not leave the shared space');
+      setToast(t('shared.leaveError'));
     } finally {
       setBusy(false);
     }
@@ -345,7 +347,7 @@ export default function SharedScreen() {
       await reload();
       await refresh();
     } catch {
-      setToast('Could not delete the space');
+      setToast(t('shared.deleteError'));
     } finally {
       setBusy(false);
     }
@@ -368,13 +370,13 @@ export default function SharedScreen() {
       const latestMembers = await getSpaceMembersIncludingLeft(selectedSpace.id);
       const latest = await getOpenPeriod(selectedSpace.id);
       if (!latest) {
-        setToast('This space has no open period after syncing');
+        setToast(t('shared.noOpenPeriodAfterSync'));
         setCloseOpen(false);
         await loadSpace(selectedSpace.id);
         return;
       }
       if (latest.id !== period.id) {
-        setToast('The open period changed on another device — reloading');
+        setToast(t('shared.periodChanged'));
         setCloseOpen(false);
         await loadSpace(selectedSpace.id);
         return;
@@ -423,7 +425,7 @@ export default function SharedScreen() {
       await loadSpace(selectedSpace.id);
       await refresh();
     } catch {
-      setToast('Could not close the period — a pre-close sync is required');
+      setToast(t('shared.closeError'));
     } finally {
       setBusy(false);
     }
@@ -434,7 +436,7 @@ export default function SharedScreen() {
       return;
     }
     if (!period) {
-      setToast('This space has no open period');
+      setToast(t('shared.noOpenPeriod'));
       return;
     }
     router.push({
@@ -451,12 +453,10 @@ export default function SharedScreen() {
     return (
       <View style={styles.centeredContainer}>
         <Card mode="elevated" style={styles.card}>
-          <Card.Title title="Shared spaces" subtitle="Optional — requires an account" />
+          <Card.Title title={t('shared.spacesTitle')} subtitle={t('shared.requiresAccount')} />
           <Card.Content>
             <Text variant="bodyMedium" style={styles.text}>
-              Shared spaces let you track common expenses with another Coconut user. Local
-              tracking keeps working offline; shared data syncs through the Supabase project you
-              configure.
+              {t('shared.intro')}
             </Text>
             <Button
               mode="contained"
@@ -464,7 +464,7 @@ export default function SharedScreen() {
               onPress={() => router.push('/sync')}
               style={styles.button}
             >
-              Set up cloud sync
+              {t('shared.setupCloud')}
             </Button>
           </Card.Content>
         </Card>
@@ -476,8 +476,8 @@ export default function SharedScreen() {
     <ScreenFade>
       <Tabs.Screen
         options={{
-          title: selectedSpace?.name ?? 'Shared',
-          tabBarLabel: 'Shared',
+          title: selectedSpace?.name ?? t('nav.shared'),
+          tabBarLabel: t('nav.shared'),
           headerRight: () => (
             <SharedHeaderMenu
               spaces={spaces}
@@ -521,16 +521,16 @@ export default function SharedScreen() {
       {selectedSpace ? (
         <View style={styles.container}>
           <Text style={styles.header} variant="titleMedium">
-            {expenses.length} expenses
+            {t('shared.count', { count: expenses.length })}
             {expenses.length > 0 ? ` • ${formatCents(total, settings.currencySymbol)}` : ''}
           </Text>
           <Text style={styles.periodLabel} variant="bodySmall">
             {period
-              ? `Current period since ${dayjs(period.startDate).format('D MMM YYYY')}`
-              : 'No open period'}
+              ? t('shared.periodSince', { date: dayjs(period.startDate).format('D MMM YYYY') })
+              : t('shared.noOpenPeriodLabel')}
           </Text>
           <Searchbar
-            placeholder="Search expenses"
+            placeholder={t('shared.searchPlaceholder')}
             value={query}
             onChangeText={setQuery}
             style={styles.search}
@@ -554,10 +554,10 @@ export default function SharedScreen() {
                 icon={<Text variant="displaySmall">🧾</Text>}
                 message={
                   query.trim().length > 0
-                    ? 'No expenses match your search.'
-                    : 'No shared expenses yet.'
+                    ? t('shared.noMatch')
+                    : t('shared.none')
                 }
-                actionLabel={query.trim().length > 0 ? undefined : 'Add an expense'}
+                actionLabel={query.trim().length > 0 ? undefined : t('shared.add')}
                 onAction={query.trim().length > 0 ? undefined : openAddExpense}
               />
             }
@@ -572,9 +572,7 @@ export default function SharedScreen() {
               return (
                 <List.Item
                   title={expense.description}
-                  description={`Paid by ${memberNames.get(expense.paidByMemberId) ?? 'someone'}${
-                    expense.note ? ` • ${expense.note}` : ''
-                  }`}
+                  description={t('shared.paidBy', { name: memberNames.get(expense.paidByMemberId) ?? t('shared.someone') }) + (expense.note ? ` • ${expense.note}` : '')}
                   left={(props) => <List.Icon {...props} icon="cash" />}
                   right={() => (
                     <View style={styles.right}>
@@ -582,7 +580,7 @@ export default function SharedScreen() {
                         {formatCents(expense.totalAmountCents, settings.currencySymbol)}
                       </Text>
                       <Text variant="labelSmall" style={styles.shareLabel}>
-                        {`Your share ${formatCents(myShare, settings.currencySymbol)}`}
+                        {t('shared.yourShare', { amount: formatCents(myShare, settings.currencySymbol) })}
                       </Text>
                     </View>
                   )}
@@ -611,10 +609,10 @@ export default function SharedScreen() {
             icon={<Text variant="displaySmall">👥</Text>}
             message={
               spaces.length === 0
-                ? 'Create a shared space from the menu to start tracking shared expenses.'
-                : 'Choose a shared space from the menu.'
+                ? t('shared.createPromptEmpty')
+                : t('shared.createPromptChoose')
             }
-            actionLabel="New shared space"
+            actionLabel={t('shared.newSpace')}
             onAction={() => setCreateOpen(true)}
           />
         </View>
@@ -622,35 +620,35 @@ export default function SharedScreen() {
 
       <Portal>
         <AppDialog visible={createOpen} onDismiss={() => setCreateOpen(false)}>
-          <AppDialog.Title>New shared space</AppDialog.Title>
+          <AppDialog.Title>{t('shared.newSpace')}</AppDialog.Title>
           <AppDialog.Content>
             <PaperTextInput
               mode="outlined"
-              label="Name"
+              label={t('shared.name')}
               value={spaceName}
               onChangeText={setSpaceName}
               autoFocus
             />
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onPress={() => setCreateOpen(false)}>{t('common.cancel')}</Button>
             <Button
               mode="contained"
               loading={busy}
               disabled={busy || spaceName.trim().length === 0}
               onPress={() => void handleCreateSpace()}
             >
-              Create
+              {t('shared.create')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>
 
         <AppDialog visible={inviteOpen} onDismiss={() => setInviteOpen(false)}>
-          <AppDialog.Title>Invite by email</AppDialog.Title>
+          <AppDialog.Title>{t('shared.inviteTitle')}</AppDialog.Title>
           <AppDialog.Content>
             <PaperTextInput
               mode="outlined"
-              label="Email"
+              label={t('shared.email')}
               value={inviteEmail}
               onChangeText={setInviteEmail}
               autoCapitalize="none"
@@ -659,34 +657,33 @@ export default function SharedScreen() {
               autoFocus
             />
             <HelperText type="info">
-              They will see a pending invite after signing in with this email.
+              {t('shared.inviteHint')}
             </HelperText>
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setInviteOpen(false)}>Cancel</Button>
+            <Button onPress={() => setInviteOpen(false)}>{t('common.cancel')}</Button>
             <Button
               mode="contained"
               loading={busy}
               disabled={busy || inviteEmail.trim().length === 0}
               onPress={() => void handleInvite()}
             >
-              Send
+              {t('shared.send')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>
 
         <AppDialog visible={closeOpen} onDismiss={() => setCloseOpen(false)}>
-          <AppDialog.Title>Close this period?</AppDialog.Title>
+          <AppDialog.Title>{t('shared.closeTitle')}</AppDialog.Title>
           <AppDialog.Content>
             <Text variant="bodyMedium">
-              This snapshots the balances and opens a new period. Expenses stay visible in the
-              report.
+              {t('shared.closeBody')}
             </Text>
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setCloseOpen(false)}>Cancel</Button>
+            <Button onPress={() => setCloseOpen(false)}>{t('common.cancel')}</Button>
             <Button mode="contained" loading={busy} onPress={() => void handleClosePeriod()}>
-              Close period
+              {t('shared.closePeriod')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>
@@ -696,25 +693,25 @@ export default function SharedScreen() {
           onDismiss={() => setRenameOpen(false)}
           style={{ borderRadius: theme.radii.small }}
         >
-          <AppDialog.Title>Rename space</AppDialog.Title>
+          <AppDialog.Title>{t('shared.renameTitle')}</AppDialog.Title>
           <AppDialog.Content>
             <PaperTextInput
               mode="outlined"
-              label="Name"
+              label={t('shared.name')}
               value={renameName}
               onChangeText={setRenameName}
               autoFocus
             />
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setRenameOpen(false)}>Cancel</Button>
+            <Button onPress={() => setRenameOpen(false)}>{t('common.cancel')}</Button>
             <Button
               mode="contained"
               loading={busy}
               disabled={busy || renameName.trim().length === 0}
               onPress={() => void handleRenameSpace()}
             >
-              Save
+              {t('common.save')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>
@@ -725,23 +722,21 @@ export default function SharedScreen() {
             onDismiss={() => setRemoveTarget(null)}
             style={{ borderRadius: theme.radii.small }}
           >
-            <AppDialog.Title>Remove {sharedMemberName(removeTarget)}?</AppDialog.Title>
+            <AppDialog.Title>{t('shared.removeTitle', { name: sharedMemberName(removeTarget) })}</AppDialog.Title>
             <AppDialog.Content>
               <Text variant="bodyMedium">
-                {sharedMemberName(removeTarget)} will lose access to this space on all their
-                devices. Their linked personal expenses are kept and become ordinary
-                transactions.
+                {t('shared.removeBody', { name: sharedMemberName(removeTarget) })}
               </Text>
             </AppDialog.Content>
             <AppDialog.Actions>
-              <Button onPress={() => setRemoveTarget(null)}>Cancel</Button>
+              <Button onPress={() => setRemoveTarget(null)}>{t('common.cancel')}</Button>
               <Button
                 mode="contained"
                 buttonColor={theme.semantic.delete}
                 loading={busy}
                 onPress={() => void handleRemoveMember()}
               >
-                Remove
+                {t('shared.remove')}
               </Button>
             </AppDialog.Actions>
           </AppDialog>
@@ -752,23 +747,21 @@ export default function SharedScreen() {
           onDismiss={() => setLeaveOpen(false)}
           style={{ borderRadius: theme.radii.xl }}
         >
-          <AppDialog.Title>Leave this space?</AppDialog.Title>
+          <AppDialog.Title>{t('shared.leaveTitle')}</AppDialog.Title>
           <AppDialog.Content>
             <Text variant="bodyMedium">
-              You will lose access to this space on all your devices. Your linked personal
-              expenses are kept and become ordinary transactions. The other members can keep
-              managing the space without you.
+              {t('shared.leaveBody')}
             </Text>
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setLeaveOpen(false)}>Cancel</Button>
+            <Button onPress={() => setLeaveOpen(false)}>{t('common.cancel')}</Button>
             <Button
               mode="contained"
               buttonColor={theme.semantic.delete}
               loading={busy}
               onPress={() => void handleLeaveSpace()}
             >
-              Leave
+              {t('shared.leave')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>
@@ -778,23 +771,21 @@ export default function SharedScreen() {
           onDismiss={() => setDeleteSpaceOpen(false)}
           style={{ borderRadius: theme.radii.small }}
         >
-          <AppDialog.Title>Delete this space?</AppDialog.Title>
+          <AppDialog.Title>{t('shared.deleteTitle')}</AppDialog.Title>
           <AppDialog.Content>
             <Text variant="bodyMedium">
-              Everyone loses access and the shared expenses are removed from all devices. Your
-              linked personal expenses are kept and become ordinary transactions. This cannot
-              be undone.
+              {t('shared.deleteBody')}
             </Text>
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setDeleteSpaceOpen(false)}>Cancel</Button>
+            <Button onPress={() => setDeleteSpaceOpen(false)}>{t('common.cancel')}</Button>
             <Button
               mode="contained"
               buttonColor={theme.semantic.delete}
               loading={busy}
               onPress={() => void handleDeleteSpace()}
             >
-              Delete
+              {t('common.delete')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>

@@ -4,6 +4,7 @@ import { KeyboardAwareScrollView } from '../../components/keyboard-aware-scroll-
 import { Card, List, ProgressBar, Text } from 'react-native-paper';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAppData } from '../../data/DataProvider';
+import { useI18n } from '../../i18n';
 import type {
   BudgetPerformanceRecord,
   ClosedMonthRecord,
@@ -33,6 +34,7 @@ export default function StatisticsScreen() {
   const { ready, settings } = useAppData();
   const theme = useAppTheme();
   const router = useRouter();
+  const { t } = useI18n();
   const [records, setRecords] = useState<ClosedMonthRecord[]>([]);
   const [performance, setPerformance] = useState<BudgetPerformanceRecord[]>([]);
   const [ratingPerformance, setRatingPerformance] = useState<RatingPerformancePoint[]>([]);
@@ -63,28 +65,28 @@ export default function StatisticsScreen() {
       <KeyboardAwareScrollView contentContainerStyle={styles.container}>
       <View style={styles.statRow}>
         <StatCard
-          label="Avg spending / month"
+          label={t('statistics.avgSpending')}
           value={average}
           format={(v) => formatCents(v, symbol)}
         />
         <StatCard
-          label="Highest month"
+          label={t('statistics.highestMonth')}
           value={highest}
           format={(v) => formatCents(v, symbol)}
         />
       </View>
       <View style={styles.statRow}>
         <StatCard
-          label="Avg reserve adjustment"
+          label={t('statistics.avgReserve')}
           value={averageAdjustment}
           format={(v) => formatCents(v, symbol)}
           sub={
             averageAdjustment !== null
               ? averageAdjustment < 0
-                ? 'Months draw on the reserve on average'
+                ? t('statistics.drawAverage')
                 : averageAdjustment > 0
-                  ? 'Months saved on average'
-                  : 'No net shift in the reserve'
+                  ? t('statistics.savedAverage')
+                  : t('statistics.noNetShift')
               : null
           }
           tone={averageAdjustment !== null && averageAdjustment > 0 ? 'good' : averageAdjustment !== null && averageAdjustment < 0 ? 'bad' : 'neutral'}
@@ -93,11 +95,11 @@ export default function StatisticsScreen() {
 
       <Card mode="elevated" style={styles.card}>
         <List.Item
-          title="Monthly history"
+          title={t('statistics.monthlyHistory')}
           description={
             records.length === 0
-              ? 'Close a month to generate its report'
-              : 'Open the report of every closed month'
+              ? t('statistics.historyEmpty')
+              : t('statistics.historyOpenAll')
           }
           left={(props) => <List.Icon {...props} icon="calendar-month-outline" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
@@ -107,7 +109,7 @@ export default function StatisticsScreen() {
 
       <Card mode="elevated" style={styles.card}>
         <View style={styles.chartHeader}>
-          <Text variant="titleMedium">Monthly spend</Text>
+          <Text variant="titleMedium">{t('statistics.monthlySpend')}</Text>
           {median !== null ? (
             <View
               style={[
@@ -117,14 +119,14 @@ export default function StatisticsScreen() {
               ]}
             >
               <Text variant="labelMedium" style={{ color: theme.colors.onPrimaryContainer }}>
-                {`Median ${formatCents(median, symbol)}`}
+                {t('statistics.median', { amount: formatCents(median, symbol) })}
               </Text>
             </View>
           ) : null}
         </View>
         {records.length === 0 ? (
           <Text variant="bodyMedium" style={styles.chartEmpty}>
-            Close a month to chart its spending.
+            {t('statistics.chartSpendEmpty')}
           </Text>
         ) : (
           <View style={styles.chartBody}>
@@ -141,26 +143,26 @@ export default function StatisticsScreen() {
       </Card>
       <Card mode="elevated" style={styles.card}>
         <Card.Title
-          title="Spending performance"
-          subtitle="Share of transactions rated regret, neutral, and good"
+          title={t('statistics.spendingPerformance')}
+          subtitle={t('statistics.spendingPerformanceSubtitle')}
         />
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: theme.semantic.error }]} />
-            <Text variant="labelSmall">Regret</Text>
+            <Text variant="labelSmall">{t('statistics.regret')}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: theme.colors.outline }]} />
-            <Text variant="labelSmall">Neutral</Text>
+            <Text variant="labelSmall">{t('statistics.neutral')}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: theme.semantic.success }]} />
-            <Text variant="labelSmall">Good</Text>
+            <Text variant="labelSmall">{t('statistics.good')}</Text>
           </View>
         </View>
         {ratingPerformance.length === 0 ? (
           <Text variant="bodyMedium" style={styles.chartEmpty}>
-            Close a month with transactions to chart its spending performance.
+            {t('statistics.performanceEmpty')}
           </Text>
         ) : (
           <View style={styles.chartBody}>
@@ -171,13 +173,13 @@ export default function StatisticsScreen() {
 
       <Card mode="elevated" style={styles.card}>
         <Card.Title
-          title="Savings trend"
-          subtitle="Money added to or drawn from the reserve each month"
+          title={t('statistics.savingsTrend')}
+          subtitle={t('statistics.savingsTrendSubtitle')}
         />
         <Card.Content>
           {records.length === 0 ? (
             <Text variant="bodyMedium" style={styles.chartEmpty}>
-              Close a month to chart how the reserve moves.
+              {t('statistics.reserveEmpty')}
             </Text>
           ) : (
             <SavingsTrendChart
@@ -193,13 +195,13 @@ export default function StatisticsScreen() {
 
       <Card mode="elevated" style={styles.card}>
         <Card.Title
-          title="Budget usage"
-          subtitle="Average of each month's spend vs. its plan"
+          title={t('statistics.budgetUsage')}
+          subtitle={t('statistics.budgetUsageSubtitle')}
         />
         <Card.Content>
           {performance.length === 0 ? (
             <Text variant="bodyMedium" style={styles.empty}>
-              No budget data in closed months yet.
+              {t('statistics.budgetEmpty')}
             </Text>
           ) : (
             performance.map((entry) => {
@@ -210,7 +212,7 @@ export default function StatisticsScreen() {
                     <View style={styles.historyRow}>
                       <Text variant="bodyMedium">{entry.name}</Text>
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                        No budget data
+                        {t('statistics.noBudgetData')}
                       </Text>
                     </View>
                   </View>
@@ -222,7 +224,7 @@ export default function StatisticsScreen() {
                   <View style={styles.historyRow}>
                     <Text variant="bodyMedium">{entry.name}</Text>
                     <Text variant="bodySmall" style={{ color: over ? theme.semantic.overBudget : theme.colors.onSurfaceVariant }}>
-                      {`${average}% of plan / month`}
+                      {t('statistics.percentOfPlan', { percent: average })}
                     </Text>
                   </View>
                   <ProgressBar

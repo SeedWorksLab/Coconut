@@ -1,3 +1,5 @@
+import type { Language } from '../i18n/types';
+
 export type MonthKey = string;
 
 export type FixedExpenseKind = 'fixed' | 'variable';
@@ -13,6 +15,7 @@ export interface Settings {
   themeMode: 'light' | 'dark' | 'system';
   recentTransactionsCount: number;
   username: string | null;
+  language: Language;
 }
 
 export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';

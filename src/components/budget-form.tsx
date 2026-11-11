@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Budget } from '../models';
 import { formatCents } from '../utils/currency';
 import { AmountInput } from './amount-input';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
 
 export type BudgetDraft = Omit<Budget, 'id' | 'sortOrder'> & { sortOrder: number };
@@ -31,6 +32,7 @@ export function BudgetForm({
   const [color, setColor] = useState<string | null>(initialData?.color ?? null);
   const [amountError, setAmountError] = useState<string | null>(null);
   const theme = useAppTheme();
+  const { t } = useI18n();
 
   const hasName = name.trim().length > 0;
 
@@ -40,11 +42,11 @@ export function BudgetForm({
       return;
     }
     if (defaultAmountCents === null) {
-      setAmountError('Enter a valid amount.');
+      setAmountError(t('form.enterValidAmount'));
       return;
     }
     if (defaultAmountCents < 0) {
-      setAmountError('Amount cannot be negative.');
+      setAmountError(t('settings.amountCannotBeNegative'));
       return;
     }
     onSubmit({
@@ -59,14 +61,14 @@ export function BudgetForm({
   return (
     <View style={styles.container}>
       <TextInput
-        label="Name"
+        label={t('form.name')}
         value={name}
         onChangeText={setName}
         mode="outlined"
         style={styles.field}
       />
       <AmountInput
-        label="Default monthly amount"
+        label={t('form.defaultMonthlyAmount')}
         value={defaultAmountCents}
         onChange={setDefaultAmountCents}
         prefix={currencySymbol}
@@ -74,12 +76,12 @@ export function BudgetForm({
       />
       {remainingCents !== undefined ? (
         <Text variant="bodySmall" style={styles.remainingHint}>
-          Remaining from allowance (including expected fixed expenses and other budgets, excluding this budget):{' '}
+          {t('form.remainingHint')}
           <Text style={styles.remainingAmount}>{formatCents(remainingCents, currencySymbol)}</Text>
         </Text>
       ) : null}
       <Text variant="labelLarge" style={styles.colorLabel}>
-        Color
+        {t('form.color')}
       </Text>
       <View style={styles.palette}>
         {theme.chart.map((option) => {
@@ -88,7 +90,7 @@ export function BudgetForm({
             <Pressable
               key={option}
               accessibilityRole="button"
-              accessibilityLabel={`Budget color ${option}`}
+              accessibilityLabel={t('form.budgetColor', { color: option })}
               accessibilityState={{ selected }}
               onPress={() => setColor(option)}
               style={[
@@ -105,7 +107,7 @@ export function BudgetForm({
         })}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="No budget color"
+          accessibilityLabel={t('form.noBudgetColor')}
           accessibilityState={{ selected: color === null }}
           onPress={() => setColor(null)}
           style={[
@@ -123,7 +125,7 @@ export function BudgetForm({
         </Pressable>
       </View>
       <Text variant="bodySmall" style={styles.colorHint}>
-        Transactions tagged with this budget use the color for their icon.
+        {t('form.colorHint')}
       </Text>
       <Button
         mode="contained"
@@ -132,11 +134,11 @@ export function BudgetForm({
         loading={submitting}
         style={styles.submit}
       >
-        Save
+        {t('common.save')}
       </Button>
       {!hasName ? (
         <Text variant="bodySmall" style={[styles.generalError, { color: theme.colors.error }]}>
-          Enter a name.
+          {t('form.enterName')}
         </Text>
       ) : null}
     </View>

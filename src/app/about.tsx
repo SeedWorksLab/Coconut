@@ -8,10 +8,12 @@ import { CoconutLogo } from '../components/coconut-logo';
 import { useAppTheme } from '../theme';
 import { releaseInfo } from '../config/release-info';
 import { GITHUB_REPO_URL } from '../config/repository';
+import { useI18n } from '../i18n';
 
 export default function AboutScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const { t } = useI18n();
 
   const builtVersion =
     releaseInfo.releasedAt === ''
@@ -19,14 +21,14 @@ export default function AboutScreen() {
       : `${releaseInfo.version} (build ${releaseInfo.versionCode})`;
   const releasedLabel =
     releaseInfo.releasedAt === ''
-      ? 'Not yet released'
+      ? t('about.notReleased')
       : dayjs(releaseInfo.releasedAt).format('D MMM YYYY, HH:mm');
 
   const openGitHub = async () => {
     try {
       await Linking.openURL(GITHUB_REPO_URL);
     } catch {
-      Alert.alert('Could not open the link');
+      Alert.alert(t('about.linkError'));
     }
   };
 
@@ -34,7 +36,7 @@ export default function AboutScreen() {
     <>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="About" />
+        <Appbar.Content title={t('about.title')} />
       </Appbar.Header>
       <KeyboardAwareScrollView contentContainerStyle={styles.container}>
         <View style={styles.logo}>
@@ -44,27 +46,27 @@ export default function AboutScreen() {
           Coconut
         </Text>
         <Text variant="bodyMedium" style={styles.tagline}>
-          Budget management
+          {t('about.tagline')}
         </Text>
 
         <List.Section>
           <List.Item
-            title="Developer"
+            title={t('about.developer')}
             description="Henrik Kerezsi"
             left={(props) => <List.Icon {...props} icon="account-outline" />}
           />
           <List.Item
-            title="Version"
+            title={t('about.version')}
             description={builtVersion}
             left={(props) => <List.Icon {...props} icon="tag-outline" />}
           />
           <List.Item
-            title="Released"
+            title={t('about.released')}
             description={releasedLabel}
             left={(props) => <List.Icon {...props} icon="clock-outline" />}
           />
           <List.Item
-            title="GitHub"
+            title={t('about.github')}
             description={GITHUB_REPO_URL}
             left={(props) => (
               <List.Icon {...props} icon="github" color={theme.colors.primary} />
@@ -74,10 +76,7 @@ export default function AboutScreen() {
         </List.Section>
 
         <Text variant="bodySmall" style={styles.about}>
-          Coconut is a private, offline-first budget app. Each month it compares your
-          allowance against planned fixed expenses and flexible budgets, and it tracks a
-          savings reserve. Everything stays on this device only — no network, no account,
-          no tracking.
+          {t('about.description')}
         </Text>
       </KeyboardAwareScrollView>
     </>

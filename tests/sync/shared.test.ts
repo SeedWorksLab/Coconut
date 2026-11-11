@@ -19,7 +19,8 @@ const REMOTE_COLUMNS: Record<string, string[]> = {
 class FakeQuery {
   private filters: Array<[string, unknown]> = [];
   private comparisons: Array<[string, unknown]> = [];
-  private orderSpec: { column: string; ascending: boolean } | null = null;
+  private orderSpecs: Array<{ column: string; ascending: boolean }> = [];
+  private rangeSpec: { from: number; to: number } | null = null;
   private mode: 'select' | 'delete' = 'select';
 
   constructor(
@@ -48,7 +49,12 @@ class FakeQuery {
   }
 
   order(column: string, options?: { ascending?: boolean }): this {
-    this.orderSpec = { column, ascending: options?.ascending !== false };
+    this.orderSpecs.push({ column, ascending: options?.ascending !== false });
+    return this;
+  }
+
+  range(from: number, to: number): this {
+    this.rangeSpec = { from, to };
     return this;
   }
 
@@ -118,13 +124,21 @@ class FakeQuery {
       return { data: [], error: null };
     }
     let rows = [...table.values()].filter((row) => this.matches(row));
-    if (this.orderSpec) {
-      const { column, ascending } = this.orderSpec;
+    if (this.orderSpecs.length > 0) {
       rows = rows.sort((a, b) => {
-        const av = String(a[column] ?? '');
-        const bv = String(b[column] ?? '');
-        return ascending ? av.localeCompare(bv) : bv.localeCompare(av);
+        for (const { column, ascending } of this.orderSpecs) {
+          const av = String(a[column] ?? '');
+          const bv = String(b[column] ?? '');
+          const compared = av.localeCompare(bv);
+          if (compared !== 0) {
+            return ascending ? compared : -compared;
+          }
+        }
+        return 0;
       });
+    }
+    if (this.rangeSpec) {
+      rows = rows.slice(this.rangeSpec.from, this.rangeSpec.to + 1);
     }
     return { data: rows, error: null };
   }

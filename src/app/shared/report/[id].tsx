@@ -15,11 +15,13 @@ import { useAppData } from '../../../data/DataProvider';
 import { formatCents } from '../../../utils/currency';
 import { getSpaceMembersIncludingLeft } from '../../../database/sharedSpaces';
 import { getPeriodReport } from '../../../database/sharedExpenses';
+import { useI18n } from '../../../i18n';
 
 export default function SharedReportScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const periodId = Number(params.id);
   const { settings } = useAppData();
+  const { t } = useI18n();
   const [report, setReport] = useState<SharedPeriodReport | null>(null);
   const [members, setMembers] = useState<SharedSpaceMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export default function SharedReportScreen() {
   if (!report) {
     return (
       <View style={styles.centered}>
-        <PaperText variant="bodyLarge">This report is no longer available.</PaperText>
+        <PaperText variant="bodyLarge">{t('sharedReport.unavailable')}</PaperText>
       </View>
     );
   }
@@ -75,7 +77,7 @@ export default function SharedReportScreen() {
       }
     }
     const legacy = members.find((member) => member.id === id);
-    return legacy?.displayName ?? legacy?.email ?? `Member #${id}`;
+    return legacy?.displayName ?? legacy?.email ?? t('sharedReport.memberNumber', { id });
   };
 
   return (
@@ -87,21 +89,24 @@ export default function SharedReportScreen() {
         />
         <Card.Content>
           <PaperText variant="bodySmall" style={styles.hint}>
-            Closed {dayjs(data.closedAt).format('D MMM YYYY, HH:mm')}
+            {t('sharedReport.closedAt', {
+              date: dayjs(data.closedAt).format('D MMM YYYY, HH:mm'),
+            })}
           </PaperText>
         </Card.Content>
       </Card>
 
       <Card mode="elevated" style={styles.card}>
-        <Card.Title title="Expenses" />
+        <Card.Title title={t('sharedReport.expenses')} />
         <Card.Content style={styles.cardContent}>
           {data.expenses.map((expense, index) => (
             <List.Item
               key={`${expense.description}-${index}`}
               title={expense.description}
-              description={`${dayjs(expense.date).format('D MMM')} · paid by ${nameOf(
-                expense.paidByMemberId
-              )}`}
+              description={t('sharedReport.paidBy', {
+                date: dayjs(expense.date).format('D MMM'),
+                name: nameOf(expense.paidByMemberId),
+              })}
               right={() => (
                 <PaperText variant="titleMedium">
                   {formatCents(expense.totalAmountCents, settings.currencySymbol)}
@@ -113,16 +118,16 @@ export default function SharedReportScreen() {
       </Card>
 
       <Card mode="elevated" style={styles.card}>
-        <Card.Title title="Balances" />
+        <Card.Title title={t('sharedReport.balances')} />
         <Card.Content style={styles.cardContent}>
           {data.balances.map((balance) => (
             <List.Item
               key={balance.memberId}
               title={nameOf(balance.memberId)}
-              description={`Paid ${formatCents(balance.paidCents, settings.currencySymbol)} · share ${formatCents(
-                balance.owedCents,
-                settings.currencySymbol
-              )}`}
+              description={t('sharedReport.paidShare', {
+                paid: formatCents(balance.paidCents, settings.currencySymbol),
+                owed: formatCents(balance.owedCents, settings.currencySymbol),
+              })}
               right={() => (
                 <PaperText variant="titleMedium">
                   {formatCents(balance.netCents, settings.currencySymbol)}
@@ -134,12 +139,15 @@ export default function SharedReportScreen() {
             <>
               <Divider style={styles.divider} />
               <PaperText variant="labelLarge" style={styles.sectionLabel}>
-                Settle up
+                {t('sharedReport.settleUp')}
               </PaperText>
               {data.settlements.map((settlement) => (
                 <List.Item
                   key={`${settlement.fromMemberId}-${settlement.toMemberId}`}
-                  title={`${nameOf(settlement.fromMemberId)} pays ${nameOf(settlement.toMemberId)}`}
+                  title={t('sharedReport.pays', {
+                    from: nameOf(settlement.fromMemberId),
+                    to: nameOf(settlement.toMemberId),
+                  })}
                   right={() => (
                     <PaperText variant="titleMedium">
                       {formatCents(settlement.amountCents, settings.currencySymbol)}

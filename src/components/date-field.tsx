@@ -3,6 +3,7 @@ import { Platform, TouchableOpacity, StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Text } from 'react-native-paper';
 import dayjs from 'dayjs';
+import { useI18n } from '../i18n';
 import { DAYJS_STORE_DATE_FORMAT } from '../utils/date';
 
 interface DateFieldProps {
@@ -20,6 +21,7 @@ export function DateField({
   minimumDate,
   maximumDate,
 }: DateFieldProps) {
+  const { t } = useI18n();
   const [show, setShow] = useState(false);
 
   const handleValueChange = (_event: unknown, selected: Date) => {
@@ -44,7 +46,7 @@ export function DateField({
           {dayjs(value).format('ddd, D MMM YYYY')}
         </Text>
         <Text variant="labelMedium" style={styles.label}>
-          Change date
+          {t('form.changeDate')}
         </Text>
       </TouchableOpacity>
       {show ? (

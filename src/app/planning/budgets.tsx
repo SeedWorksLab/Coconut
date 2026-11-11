@@ -7,6 +7,7 @@ import { formatCents } from '../../utils/currency';
 import { LoadingScreen } from '../../components/loading-screen';
 import { AppDialog } from '../../components/app-dialog';
 import { DragHandle, ReorderableList } from '../../components/reorderable-list';
+import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
 
 /**
@@ -18,6 +19,7 @@ import { useAppTheme } from '../../theme';
 export default function BudgetsScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const { t } = useI18n();
   const { ready, settings, budgets, removeBudget, reorderBudgets } = useAppData();
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
@@ -37,18 +39,18 @@ export default function BudgetsScreen() {
         ListHeaderComponent={
           <>
             <List.Item
-              title="Plan this month"
-              description="Set what you expect to spend in each budget this month"
+              title={t('planning.planThisMonth')}
+              description={t('planning.planThisMonthDescription')}
               left={(props) => <List.Icon {...props} icon="calendar-edit-outline" />}
               right={(props) => <List.Icon {...props} icon="chevron-right" />}
               onPress={() => router.push('/planning/month')}
             />
-            <List.Subheader>Definitions</List.Subheader>
+            <List.Subheader>{t('planning.definitions')}</List.Subheader>
           </>
         }
         ListEmptyComponent={
           <PaperText variant="bodyMedium" style={styles.empty}>
-            No budget definitions yet. Add one to assign transactions to a budget.
+            {t('planning.noBudgetDefinitions')}
           </PaperText>
         }
         renderRow={(item, { isDragged, handleProps }) => (
@@ -67,10 +69,12 @@ export default function BudgetsScreen() {
                 : null,
             ]}
           >
-            <DragHandle isDragged={isDragged} handleProps={handleProps} label={`Reorder ${item.name}`} />
+            <DragHandle isDragged={isDragged} handleProps={handleProps} label={t('planning.reorder', { name: item.name })} />
             <List.Item
               title={item.name}
-              description={`Default: ${formatCents(item.defaultAmountCents, symbol)}`}
+              description={t('planning.defaultAmount', {
+                amount: formatCents(item.defaultAmountCents, symbol),
+              })}
               right={(props) => (
                 <View {...props} style={styles.rowActions}>
                   <IconButton icon="pencil-outline" onPress={() => router.push(`/budget/${item.id}`)} />
@@ -87,16 +91,16 @@ export default function BudgetsScreen() {
       {deleteId !== null && (
         <Portal>
           <AppDialog visible onDismiss={() => setDeleteId(null)}>
-            <AppDialog.Title>Delete budget?</AppDialog.Title>
+            <AppDialog.Title>{t('planning.deleteBudgetTitle')}</AppDialog.Title>
             <AppDialog.Content>
               <PaperText variant="bodyMedium">
-                Transactions already tagged with this budget keep their tags. This removes the current month&apos;s planned amount too. Past months keep their records.
+                {t('planning.deleteBudgetBody')}
               </PaperText>
             </AppDialog.Content>
             <AppDialog.Actions>
-              <List.Item title="Cancel" onPress={() => setDeleteId(null)} />
+              <List.Item title={t('common.cancel')} onPress={() => setDeleteId(null)} />
               <List.Item
-                title="Delete"
+                title={t('common.delete')}
                 titleStyle={{ color: theme.semantic.delete }}
                 onPress={async () => {
                   if (deleteId === null) {
@@ -112,7 +116,7 @@ export default function BudgetsScreen() {
       )}
       <FAB
         icon="plus"
-        label="Add"
+        label={t('common.add')}
         style={styles.fab}
         onPress={() => router.push('/budget/new')}
       />

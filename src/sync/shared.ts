@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SQLiteDatabase, SQLiteBindValue } from 'expo-sqlite';
 
 import { withPullGuard } from '../database/syncMeta';
@@ -7,8 +6,10 @@ import { decoupleSharedTransactions } from '../database/sharedLinking';
 import { SHARED_ADAPTERS } from './shared-serialize';
 import { isRemoteNewer, nowIso } from './time';
 import type { SyncTableAdapter } from './serialize';
+import type { CoconutClient } from './supabase';
 
 const SHARED_EPOCH = '1970-01-01T00:00:00.000Z';
+const SHARED_PULL_PAGE_SIZE = 500;
 
 const SHARED_TABLE_SET = new Set(SHARED_ADAPTERS.map((adapter) => adapter.localTable));
 
@@ -240,7 +241,7 @@ async function listPushEntries(
 }
 
 async function pushSharedRow(
-  client: SupabaseClient,
+  client: CoconutClient,
   db: SQLiteDatabase,
   adapter: SyncTableAdapter,
   entry: OutboxEntry,
@@ -332,7 +333,7 @@ async function pushSharedRow(
 }
 
 async function pushSharedTombstones(
-  client: SupabaseClient,
+  client: CoconutClient,
   db: SQLiteDatabase
 ): Promise<number> {
   const tombstones = await db.getAllAsync<SharedTombstoneEntry>(
@@ -402,7 +403,7 @@ export interface SharedPushResult {
 }
 
 export async function pushSharedChanges(
-  client: SupabaseClient,
+  client: CoconutClient,
   db: SQLiteDatabase,
   userId: string,
   options: SharedPushOptions = {}
@@ -467,32 +468,43 @@ async function applySharedRemoteRow(
 
 async function applySharedRemoteTombstones(
   db: SQLiteDatabase,
-  client: SupabaseClient,
+  client: CoconutClient,
   since: string
 ): Promise<{ tombstones: number; tombstonedKeys: Set<string> }> {
-  const { data, error } = await client
-    .from('shared_sync_tombstones')
-    .select('table_name, row_key')
-    .gt('deleted_at', since);
-  if (error) {
-    throw new Error(`Shared tombstone pull failed: ${error.message}`);
-  }
   const adapterByTable = new Map(SHARED_ADAPTERS.map((adapter) => [adapter.localTable, adapter]));
   let applied = 0;
+  let offset = 0;
   const tombstonedKeys = new Set<string>();
-  for (const tomb of data ?? []) {
-    const adapter = adapterByTable.get(tomb.table_name as string);
-    if (!adapter) {
-      continue;
+  for (;;) {
+    const { data, error } = await client
+      .from('shared_sync_tombstones')
+      .select('table_name, row_key')
+      .gt('deleted_at', since)
+      .order('deleted_at', { ascending: true })
+      .order('row_key', { ascending: true })
+      .range(offset, offset + SHARED_PULL_PAGE_SIZE - 1);
+    if (error) {
+      throw new Error(`Shared tombstone pull failed: ${error.message}`);
     }
-    const key = `${tomb.table_name}:${tomb.row_key}`;
-    tombstonedKeys.add(key);
-    await db.runAsync(`DELETE FROM ${adapter.localTable} WHERE uuid = ?`, [tomb.row_key]);
-    await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
-      tomb.table_name,
-      tomb.row_key,
-    ]);
-    applied += 1;
+    const page = data ?? [];
+    for (const tomb of page) {
+      const adapter = adapterByTable.get(tomb.table_name as string);
+      if (!adapter) {
+        continue;
+      }
+      const key = `${tomb.table_name}:${tomb.row_key}`;
+      tombstonedKeys.add(key);
+      await db.runAsync(`DELETE FROM ${adapter.localTable} WHERE uuid = ?`, [tomb.row_key]);
+      await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
+        tomb.table_name,
+        tomb.row_key,
+      ]);
+      applied += 1;
+    }
+    if (page.length < SHARED_PULL_PAGE_SIZE) {
+      break;
+    }
+    offset += SHARED_PULL_PAGE_SIZE;
   }
   return { tombstones: applied, tombstonedKeys };
 }
@@ -545,7 +557,7 @@ export interface SharedPullResult {
 }
 
 export async function pullSharedChanges(
-  client: SupabaseClient,
+  client: CoconutClient,
   db: SQLiteDatabase,
   since?: string
 ): Promise<SharedPullResult> {
@@ -559,31 +571,42 @@ export async function pullSharedChanges(
     tombstones = tombstoneResult.tombstones;
     const remoteSpaceUuids = new Set<string>();
     for (const adapter of SHARED_ADAPTERS) {
-      let query = client.from(adapter.remoteTable).select('*');
-      // The space list is always pulled in full: `expireRemovedSpaces` decides
-      // whether to drop a local space purely from its absence, so filtering the
-      // space rows by a sync watermark could wrongly cull a live space that
-      // simply had no recent changes. Child rows are incremental.
-      if (adapter.localTable !== 'shared_spaces') {
-        query = query.gt('updated_at', sinceValue);
-      }
-      const { data, error } = await query.order('updated_at', { ascending: true });
-      if (error) {
-        throw new Error(`Shared pull failed for ${adapter.remoteTable}: ${error.message}`);
-      }
-      for (const remoteRow of (data ?? []) as Record<string, unknown>[]) {
-        // A tombstoned row wins over any nonetheless-surviving remote copy
-        // (e.g. a split that was replaced by an edit but re-inserted by another
-        // device's stale push): never import it, so the shared data converges
-        // on exactly the current set on every member.
-        if (tombstoneResult.tombstonedKeys.has(`${adapter.localTable}:${remoteRow.uuid}`)) {
-          continue;
+      let offset = 0;
+      for (;;) {
+        let query = client.from(adapter.remoteTable).select('*');
+        // The space list is always pulled in full: `expireRemovedSpaces` decides
+        // whether to drop a local space purely from its absence, so filtering the
+        // space rows by a sync watermark could wrongly cull a live space that
+        // simply had no recent changes. Child rows are incremental.
+        if (adapter.localTable !== 'shared_spaces') {
+          query = query.gt('updated_at', sinceValue);
         }
-        await applySharedRemoteRow(db, adapter, remoteRow, maps);
-        pulled += 1;
-        if (adapter.localTable === 'shared_spaces' && typeof remoteRow.uuid === 'string') {
-          remoteSpaceUuids.add(remoteRow.uuid);
+        const { data, error } = await query
+          .order('updated_at', { ascending: true })
+          .order('uuid', { ascending: true })
+          .range(offset, offset + SHARED_PULL_PAGE_SIZE - 1);
+        if (error) {
+          throw new Error(`Shared pull failed for ${adapter.remoteTable}: ${error.message}`);
         }
+        const page = (data ?? []) as Record<string, unknown>[];
+        for (const remoteRow of page) {
+          // A tombstoned row wins over any nonetheless-surviving remote copy
+          // (e.g. a split that was replaced by an edit but re-inserted by another
+          // device's stale push): never import it, so the shared data converges
+          // on exactly the current set on every member.
+          if (tombstoneResult.tombstonedKeys.has(`${adapter.localTable}:${remoteRow.uuid}`)) {
+            continue;
+          }
+          await applySharedRemoteRow(db, adapter, remoteRow, maps);
+          pulled += 1;
+          if (adapter.localTable === 'shared_spaces' && typeof remoteRow.uuid === 'string') {
+            remoteSpaceUuids.add(remoteRow.uuid);
+          }
+        }
+        if (page.length < SHARED_PULL_PAGE_SIZE) {
+          break;
+        }
+        offset += SHARED_PULL_PAGE_SIZE;
       }
     }
     // A space vanishes from a member's pull when it is deleted by the owner or

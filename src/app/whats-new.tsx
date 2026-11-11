@@ -5,23 +5,26 @@ import { useRouter } from 'expo-router';
 import { Appbar, Text } from 'react-native-paper';
 import dayjs from 'dayjs';
 import { useAppTheme } from '../theme';
-import { whatsNew } from '../config/whats-new';
+import { whatsNewByLanguage } from '../config/whats-new';
+import { useI18n } from '../i18n';
 
 export default function WhatsNewScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const { t, language } = useI18n();
+  const entries = whatsNewByLanguage[language];
 
   return (
     <>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="What's New" />
+        <Appbar.Content title={t('screen.whatsNew')} />
       </Appbar.Header>
       <KeyboardAwareScrollView contentContainerStyle={styles.container}>
-        {whatsNew.map((entry, index) => {
+        {entries.map((entry, index) => {
           const releasedLabel =
             entry.releasedAt === ''
-              ? 'Upcoming release'
+              ? t('whatsNew.upcoming')
               : dayjs(entry.releasedAt).format('D MMM YYYY');
           const isLatest = index === 0;
           return (
@@ -33,7 +36,7 @@ export default function WhatsNewScreen() {
                 {isLatest ? (
                   <View style={[styles.badge, { backgroundColor: theme.colors.primaryContainer }]}>
                     <Text variant="labelSmall" style={{ color: theme.colors.onPrimaryContainer }}>
-                      Latest
+                      {t('whatsNew.latest')}
                     </Text>
                   </View>
                 ) : null}

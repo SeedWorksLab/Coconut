@@ -9,9 +9,25 @@ import type {
   SharedSplitRecord,
 } from '../models';
 
+export type SharedExpenseValidationError =
+  | 'selectMember'
+  | 'addMember'
+  | 'negativeAmount'
+  | 'splitTotal'
+  | 'negativePercent'
+  | 'percentTotal'
+  | 'totalPositive'
+  | 'addRestUnavailable'
+  | 'descriptionRequired'
+  | 'selectPayer'
+  | 'unknownMember'
+  | 'negativeSplit'
+  | 'dateBeforePeriod'
+  | 'dateFuture';
+
 export type SplitResolution =
   | { ok: true; splits: SharedSplitRecord[] }
-  | { ok: false; error: string };
+  | { ok: false; error: SharedExpenseValidationError };
 
 export interface BalanceExpense {
   paidByMemberId: number;
@@ -77,7 +93,7 @@ export function resolveEqualSplit(
   memberIds: number[]
 ): SplitResolution {
   if (memberIds.length === 0) {
-    return { ok: false, error: 'Select at least one member to split with.' };
+    return { ok: false, error: 'selectMember' };
   }
   const amounts = allocateByWeights(totalCents, memberIds.map(() => 1));
   return {
@@ -91,11 +107,11 @@ export function resolveExactSplit(
   inputs: SharedSplitInput[]
 ): SplitResolution {
   if (inputs.length === 0) {
-    return { ok: false, error: 'Add at least one member to split with.' };
+    return { ok: false, error: 'addMember' };
   }
   for (const input of inputs) {
     if ((input.amountCents ?? 0) < 0) {
-      return { ok: false, error: 'Amounts cannot be negative.' };
+      return { ok: false, error: 'negativeAmount' };
     }
   }
   const splits = inputs.map((input) => ({
@@ -104,7 +120,7 @@ export function resolveExactSplit(
   }));
   const sum = splits.reduce((acc, split) => acc + split.amountCents, 0);
   if (sum !== totalCents) {
-    return { ok: false, error: 'Split amounts must add up to the total.' };
+    return { ok: false, error: 'splitTotal' };
   }
   return { ok: true, splits };
 }
@@ -114,15 +130,15 @@ export function resolvePercentageSplit(
   inputs: SharedSplitInput[]
 ): SplitResolution {
   if (inputs.length === 0) {
-    return { ok: false, error: 'Add at least one member to split with.' };
+    return { ok: false, error: 'addMember' };
   }
   const weights = inputs.map((input) => input.basisPoints ?? 0);
   if (weights.some((weight) => weight < 0)) {
-    return { ok: false, error: 'Percentages cannot be negative.' };
+    return { ok: false, error: 'negativePercent' };
   }
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   if (total !== PERCENT_SCALE) {
-    return { ok: false, error: 'Percentages must add up to 100%.' };
+    return { ok: false, error: 'percentTotal' };
   }
   const amounts = allocateByWeights(totalCents, weights);
   return {
@@ -140,7 +156,7 @@ export function resolveSplit(
   inputs: SharedSplitInput[]
 ): SplitResolution {
   if (!Number.isInteger(totalCents) || totalCents <= 0) {
-    return { ok: false, error: 'Total must be greater than zero.' };
+    return { ok: false, error: 'totalPositive' };
   }
   if (method === 'equal') {
     const selected = inputs.filter((input) => input.selected !== false);
@@ -154,7 +170,7 @@ export function resolveSplit(
 
 export type FillRemainingResult =
   | { ok: true; memberId: number; value: number }
-  | { ok: false; error: string };
+  | { ok: false; error: SharedExpenseValidationError };
 
 function remainingSplitTarget(
   method: SharedSplitMethod,
@@ -196,7 +212,7 @@ export function fillRemainingSplit(
   if (target === null) {
     return {
       ok: false,
-      error: 'Add rest is only available when exactly one member is left empty.',
+      error: 'addRestUnavailable',
     };
   }
   return { ok: true, memberId: target.targetMemberId, value: target.remaining };
@@ -211,36 +227,36 @@ export function validateExpense(params: {
   date: string;
   periodStart: string;
   today: string;
-}): { ok: true } | { ok: false; error: string } {
+}): { ok: true } | { ok: false; error: SharedExpenseValidationError } {
   if (!params.description.trim()) {
-    return { ok: false, error: 'Description is required.' };
+    return { ok: false, error: 'descriptionRequired' };
   }
   if (!Number.isInteger(params.totalCents) || params.totalCents <= 0) {
-    return { ok: false, error: 'Total must be greater than zero.' };
+    return { ok: false, error: 'totalPositive' };
   }
   if (params.paidByMemberId === null || !params.memberIds.includes(params.paidByMemberId)) {
-    return { ok: false, error: 'Select who paid.' };
+    return { ok: false, error: 'selectPayer' };
   }
   if (params.splits.length === 0) {
-    return { ok: false, error: 'Add at least one member to split with.' };
+    return { ok: false, error: 'addMember' };
   }
   for (const split of params.splits) {
     if (!params.memberIds.includes(split.memberId)) {
-      return { ok: false, error: 'Split references an unknown member.' };
+      return { ok: false, error: 'unknownMember' };
     }
     if (!Number.isInteger(split.amountCents) || split.amountCents < 0) {
-      return { ok: false, error: 'Split amounts must be non-negative.' };
+      return { ok: false, error: 'negativeSplit' };
     }
   }
   const sum = params.splits.reduce((acc, split) => acc + split.amountCents, 0);
   if (sum !== params.totalCents) {
-    return { ok: false, error: 'Split amounts must add up to the total.' };
+    return { ok: false, error: 'splitTotal' };
   }
   if (params.date < params.periodStart) {
-    return { ok: false, error: 'The date cannot be before the period start.' };
+    return { ok: false, error: 'dateBeforePeriod' };
   }
   if (params.date > params.today) {
-    return { ok: false, error: 'The date cannot be in the future.' };
+    return { ok: false, error: 'dateFuture' };
   }
   return { ok: true };
 }

@@ -49,7 +49,8 @@ person's split, so the shared record and the personal budgets never drift apart.
 
 - Single-user, local-first: the database never leaves your device unless you opt in.
 - Money is stored as integer cents — no floating point anywhere.
-- The only optional external service is *your own* Supabase project: opt-in row-level sync of your personal data across your devices, and opt-in Shared Expenses with other Supabase Auth users (never hardcoded credentials; sync disabled by default). Row Level Security separates each user's personal rows from shared-space rows.
+- The only optional external service is SeedWorks Cloud (the shared SeedWorks Supabase backend), or your own Supabase project when self-hosting: opt-in row-level sync of your personal data across your devices, and opt-in Shared Expenses with other authenticated users (sync disabled by default). Only a public publishable key ships in the app; service-role secrets never leave the server. Row Level Security separates each user's personal rows from shared-space rows.
+- The cloud schema lives in the central `SeedWorks/Supabase` repository under the `coconut` schema. Self-hosted projects apply those migrations before connecting.
 - No analytics, advertising, or third parties.
 
 ## Tech stack

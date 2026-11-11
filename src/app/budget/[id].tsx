@@ -5,9 +5,11 @@ import { useAppData } from '../../data/DataProvider';
 import { remainingForBudget } from '../../services/allowance-service';
 import { BudgetForm } from '../../components/budget-form';
 import { LoadingScreen } from '../../components/loading-screen';
+import { useI18n } from '../../i18n';
 
 export default function EditBudgetScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { ready, settings, currentMonth, currentDashboard, budgets, saveBudget } = useAppData();
   const [submitting, setSubmitting] = useState(false);
@@ -35,7 +37,7 @@ export default function EditBudgetScreen() {
     <>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => router.back()} />
-        <Appbar.Content title="Budget" />
+        <Appbar.Content title={t('route.budget')} />
       </Appbar.Header>
       {loading ? (
         <LoadingScreen />

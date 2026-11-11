@@ -2,13 +2,14 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Text } from 'react-native-paper';
+import { translate, useI18n, type Language, type TranslationKey } from '../i18n';
 import { TRANSACTION_RATINGS, type TransactionRating } from '../models';
 import { useAppTheme } from '../theme';
 
-const OPTIONS: { rating: TransactionRating; icon: string; label: string }[] = [
-  { rating: 'regret', icon: 'emoticon-sad', label: 'Regret' },
-  { rating: 'neutral', icon: 'emoticon-neutral', label: 'Neutral' },
-  { rating: 'good', icon: 'emoticon-happy', label: 'Worth it' },
+const OPTIONS: { rating: TransactionRating; icon: string; labelKey: TranslationKey }[] = [
+  { rating: 'regret', icon: 'emoticon-sad', labelKey: 'rating.regret' },
+  { rating: 'neutral', icon: 'emoticon-neutral', labelKey: 'rating.neutral' },
+  { rating: 'good', icon: 'emoticon-happy', labelKey: 'rating.worthIt' },
 ];
 
 interface RatingSelectorProps {
@@ -29,6 +30,7 @@ export function RatingSelector({
   size = 22,
 }: RatingSelectorProps) {
   const theme = useAppTheme();
+  const { t } = useI18n();
   const active: TransactionRating = value ?? 'neutral';
   const colorFor = (rating: TransactionRating): string => {
     if (rating === 'regret') {
@@ -61,7 +63,7 @@ export function RatingSelector({
               hitSlop={6}
               accessibilityRole="radio"
               accessibilityState={{ selected, disabled }}
-              accessibilityLabel={option.label}
+              accessibilityLabel={t(option.labelKey)}
               testID={`rating-${option.rating}`}
               style={({ pressed }) => [
                 styles.stop,
@@ -87,13 +89,18 @@ export function RatingSelector({
   );
 }
 
-export function ratingLabel(rating: TransactionRating | null): string {
+export function ratingLabel(
+  rating: TransactionRating | null,
+  language: Language = 'en'
+): string {
   const match = TRANSACTION_RATINGS.indexOf(rating ?? 'neutral');
-  return OPTIONS[match]?.label ?? 'Neutral';
+  const option = OPTIONS[match] ?? OPTIONS[1];
+  return translate(language, option.labelKey);
 }
 
 export function RatingLegend() {
   const theme = useAppTheme();
+  const { t } = useI18n();
   return (
     <View style={styles.legend}>
       {OPTIONS.map((option) => (
@@ -110,7 +117,7 @@ export function RatingLegend() {
             }
           />
           <Text variant="labelSmall" style={{ color: theme.text.secondary }}>
-            {option.label}
+            {t(option.labelKey)}
           </Text>
         </View>
       ))}

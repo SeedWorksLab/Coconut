@@ -1,4 +1,5 @@
 import dayjs, { type Dayjs } from 'dayjs';
+import { DEFAULT_LANGUAGE, translate, type Language } from '../i18n';
 import type { MonthKey } from '../models';
 
 export const DATABASE_NAME = 'coconut.db';
@@ -40,15 +41,19 @@ export function dayLabel(isoDate: string): string {
   return dayjs(isoDate).format('ddd, D MMM');
 }
 
-export function relativeDayLabel(isoDate: string, today?: string): string {
+export function relativeDayLabel(
+  isoDate: string,
+  today?: string,
+  language: Language = DEFAULT_LANGUAGE
+): string {
   const current = dayjs(today ?? dayjs()).startOf('day');
   const date = dayjs(isoDate).startOf('day');
   const diff = current.diff(date, 'day');
   if (diff === 0) {
-    return 'Today';
+    return translate(language, 'date.today');
   }
   if (diff === 1) {
-    return 'Yesterday';
+    return translate(language, 'date.yesterday');
   }
   return dayLabel(isoDate);
 }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button, Text } from 'react-native-paper';
+import { useI18n } from '../i18n';
 import { AppDialog } from './app-dialog';
 
 interface UpdateAvailableDialogProps {
@@ -17,19 +18,20 @@ export function UpdateAvailableDialog({
   onClose,
   onIgnore,
 }: UpdateAvailableDialogProps) {
+  const { t } = useI18n();
   return (
     <AppDialog visible={visible} onDismiss={onClose}>
-      <AppDialog.Title>Update available</AppDialog.Title>
+      <AppDialog.Title>{t('update.title')}</AppDialog.Title>
       <AppDialog.Content>
         <Text variant="bodyMedium">
-          Coconut {version} is available. You are using an older version.
+          {t('update.body', { version })}
         </Text>
       </AppDialog.Content>
       <AppDialog.Actions>
-        <Button onPress={onIgnore}>Ignore</Button>
-        <Button onPress={onClose}>Close</Button>
+        <Button onPress={onIgnore}>{t('update.ignore')}</Button>
+        <Button onPress={onClose}>{t('update.close')}</Button>
         <Button mode="contained" onPress={onOpen}>
-          Open
+          {t('update.open')}
         </Button>
       </AppDialog.Actions>
     </AppDialog>

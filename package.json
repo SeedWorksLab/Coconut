@@ -12,7 +12,8 @@
     "reset-password": "node scripts/reset-password.mjs",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "release": "bash release.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

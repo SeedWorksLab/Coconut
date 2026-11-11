@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import type { SharedExpenseTrace } from '../database/sharedExpenses';
 import { getExpenseTraceByOriginId } from '../database/sharedExpenses';
+import { useI18n } from '../i18n';
 import { formatCents } from '../utils/currency';
 import { useAppTheme } from '../theme';
 
@@ -18,6 +19,7 @@ export function SharedExpenseTraceLabel({
   fallback,
 }: SharedExpenseTraceLabelProps) {
   const theme = useAppTheme();
+  const { t } = useI18n();
   const [trace, setTrace] = useState<SharedExpenseTrace | null>(null);
 
   useEffect(() => {
@@ -46,10 +48,13 @@ export function SharedExpenseTraceLabel({
   return (
     <View style={styles.wrap}>
       <Text variant="bodySmall" style={[styles.line, { color: theme.text.secondary }]}>
-        {`Shared expense · ${trace.spaceName}`}
+        {t('trace.sharedExpenseSpace', { space: trace.spaceName })}
       </Text>
       <Text variant="labelSmall" style={[styles.line, styles.sub, { color: theme.text.secondary }]}>
-        {`paid by ${trace.paidByName} · total ${formatCents(trace.totalAmountCents, symbol)}`}
+        {t('trace.paidByTotal', {
+          name: trace.paidByName,
+          amount: formatCents(trace.totalAmountCents, symbol),
+        })}
       </Text>
     </View>
   );

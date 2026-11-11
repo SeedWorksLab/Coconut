@@ -2,7 +2,7 @@
 
 import dayjs from 'dayjs';
 
-import { whatsNew } from '../../src/config/whats-new';
+import { whatsNew, whatsNewByLanguage } from '../../src/config/whats-new';
 
 describe('the what\u2019s new list', () => {
   it('lists the newest version first, so it is the one badged as latest', () => {
@@ -22,6 +22,21 @@ describe('the what\u2019s new list', () => {
       expect(Number.isNaN(date)).toBe(false);
     }
     expect(Math.max(...dates)).toBe(dates[0]);
+  });
+
+  it('keeps every language in sync with the English release list', () => {
+    for (const language of ['hu', 'de'] as const) {
+      const localized = whatsNewByLanguage[language];
+      expect(localized.map((entry) => entry.version)).toEqual(
+        whatsNew.map((entry) => entry.version)
+      );
+      for (const entry of localized) {
+        expect(entry.features.length).toBeGreaterThan(0);
+        for (const feature of entry.features) {
+          expect(feature.trim().length).toBeGreaterThan(0);
+        }
+      }
+    }
   });
 
   it('gives every entry at least one feature, with no blank ones', () => {

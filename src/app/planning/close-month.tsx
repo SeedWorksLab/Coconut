@@ -17,11 +17,13 @@ import { ScreenToast } from '../../components/screen-toast';
 import { StatCard, type Tone } from '../../components/stat-card';
 import { AppDialog } from '../../components/app-dialog';
 import { AnimatedNumber } from '../../components/animated-number';
+import { useI18n } from '../../i18n';
 import { useAppTheme } from '../../theme';
 
 export default function CloseMonthScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const { t } = useI18n();
   const { monthKey } = useLocalSearchParams<{ monthKey: string }>();
   const {
     ready,
@@ -65,9 +67,9 @@ export default function CloseMonthScreen() {
   if (!month) {
     return (
       <View style={styles.container}>
-        <CloseMonthHeader title="Close Month" onBack={() => router.back()} />
+        <CloseMonthHeader title={t('screen.closeMonth')} onBack={() => router.back()} />
         <Text variant="bodyMedium" style={styles.empty}>
-          This month is not available.
+          {t('close.notAvailable')}
         </Text>
       </View>
     );
@@ -122,33 +124,33 @@ export default function CloseMonthScreen() {
   return (
     <View style={styles.container}>
       <CloseMonthHeader
-        title={`Close ${monthLabel(month.monthKey)}`}
+        title={t('close.headerTitle', { month: monthLabel(month.monthKey) })}
         onBack={() => router.back()}
       />
 
       <KeyboardAwareScrollView contentContainerStyle={styles.content}>
         <View style={styles.statRow}>
           <StatCard
-            label="Wanted to spend"
+            label={t('close.wantedToSpend')}
             value={wantedToSpendCents}
             format={(value) => formatCents(value, symbol)}
           />
           <StatCard
-            label="Actually spent"
+            label={t('close.actuallySpent')}
             value={actuallySpentCents}
             format={(value) => formatCents(value, symbol)}
           />
         </View>
         <View style={styles.statRow}>
           <StatCard
-            label="Wanted vs spent"
+            label={t('close.wantedVsSpent')}
             value={againstPlanCents}
             format={(value) => formatCents(value, symbol)}
             tone={againstPlanTone}
-            sub={againstPlanCents < 0 ? 'Spent over plan' : 'Left unspent'}
+            sub={againstPlanCents < 0 ? t('close.spentOverPlan') : t('close.leftUnspent')}
           />
           <StatCard
-            label="Transactions"
+            label={t('close.transactions')}
             value={transactions.length}
             format={(value) => String(value)}
           />
@@ -157,22 +159,22 @@ export default function CloseMonthScreen() {
         <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
           <Card.Content>
             <Text variant="titleMedium" style={styles.reserveTitle}>
-              Savings Reserve
+              {t('overview.savingsReserve')}
             </Text>
             <View style={styles.reserveRow}>
-              <Text variant="bodyMedium">Starting reserve</Text>
+              <Text variant="bodyMedium">{t('overview.startingReserve')}</Text>
               <Text variant="bodyMedium">
                 {formatCents(reserveProjection?.startingReserveCents ?? 0, symbol)}
               </Text>
             </View>
             <View style={styles.reserveRow}>
-              <Text variant="bodyMedium">Wanted to add</Text>
+              <Text variant="bodyMedium">{t('close.wantedToAdd')}</Text>
               <Text variant="bodyMedium">
                 {formatSignedCents(plannedReserveMoveCents, symbol)}
               </Text>
             </View>
             <View style={styles.reserveRow}>
-              <Text variant="bodyMedium">Actually added so far</Text>
+              <Text variant="bodyMedium">{t('close.actuallyAdded')}</Text>
               <Text
                 variant="bodyMedium"
                 style={{
@@ -186,7 +188,7 @@ export default function CloseMonthScreen() {
             </View>
             <View style={styles.reserveRow}>
               <Text variant="bodyMedium">
-                {alreadyClosed ? 'End of month' : 'Will be at the end of the month'}
+                {alreadyClosed ? t('close.endOfMonth') : t('close.willBeAtEnd')}
               </Text>
               <AnimatedNumber
                 value={reserveProjection?.endingReserveCents ?? 0}
@@ -199,30 +201,32 @@ export default function CloseMonthScreen() {
 
         <View style={styles.statRow}>
           <StatCard
-            label="Fixed expenses"
+            label={t('settings.fixedExpenses')}
             value={fixedTotalCents}
             format={(value) => formatCents(value, symbol)}
           />
           <StatCard
-            label="Subscriptions"
+            label={t('settings.subscriptions')}
             value={subscriptionTotalCents}
             format={(value) => formatCents(value, symbol)}
           />
         </View>
 
         <Card mode="elevated" style={styles.card}>
-          <Card.Title title="Per budget" />
+          <Card.Title title={t('close.perBudget')} />
           <Card.Content>
             {budgetRows.length === 0 ? (
               <Text variant="bodyMedium" style={styles.empty}>
-                No spending tagged to a budget.
+                {t('close.noBudgetSpending')}
               </Text>
             ) : (
               budgetRows.map((row) => (
                 <List.Item
                   key={row.id}
                   title={row.name}
-                  description={`Planned ${formatCents(row.plannedCents, symbol)}`}
+                  description={t('close.plannedAmount', {
+                    amount: formatCents(row.plannedCents, symbol),
+                  })}
                   right={() => (
                     <Text variant="bodyLarge">{formatCents(row.spentCents, symbol)}</Text>
                   )}
@@ -234,18 +238,18 @@ export default function CloseMonthScreen() {
 
         <Card mode="elevated" style={styles.card}>
           <Card.Title
-            title="Month verdict"
-            subtitle="What went well, what was bad, why did the month spend the way it did?"
+            title={t('close.verdictTitle')}
+            subtitle={t('close.verdictSubtitle')}
           />
           <Card.Content>
             <TextInput
               mode="outlined"
-              label="Verdict / notes"
+              label={t('close.verdictLabel')}
               value={verdict}
               onChangeText={setVerdict}
               multiline
               numberOfLines={4}
-              placeholder="e.g. Overspent on groceries because of guests. Kept subscriptions in check. Should meal-plan next month."
+              placeholder={t('close.verdictPlaceholder')}
               style={styles.verdictInput}
             />
           </Card.Content>
@@ -253,14 +257,14 @@ export default function CloseMonthScreen() {
 
         <Card mode="elevated" style={styles.card}>
           <Card.Title
-            title="How useful was your spending?"
-            subtitle="Look back over the month and mark each purchase"
+            title={t('close.usefulSpending')}
+            subtitle={t('close.usefulSpendingSubtitle')}
           />
           <Card.Content>
             <RatingLegend />
             {transactions.length === 0 ? (
               <Text variant="bodyMedium" style={styles.empty}>
-                No transactions in this month.
+                {t('close.noTransactions')}
               </Text>
             ) : (
               transactions.map((transaction) => {
@@ -277,7 +281,7 @@ export default function CloseMonthScreen() {
                         {transaction.merchant}
                       </Text>
                       <Text variant="labelSmall" style={{ color: theme.text.secondary }}>
-                        {[budgetName, shared ? 'Shared' : null].filter(Boolean).join(' · ')}
+                        {[budgetName, shared ? t('close.shared') : null].filter(Boolean).join(' · ')}
                       </Text>
                     </View>
                     <Text variant="bodyMedium">
@@ -303,13 +307,19 @@ export default function CloseMonthScreen() {
             loading={closing}
             onPress={() => setConfirm(true)}
           >
-            {alreadyClosed ? `${monthLabel(month.monthKey)} is closed` : 'Close month'}
+            {alreadyClosed
+              ? t('close.isClosed', { month: monthLabel(month.monthKey) })
+              : t('close.closeMonth')}
           </Button>
         ) : (
           <Card mode="contained" style={styles.card}>
             <Card.Content>
               <Text variant="bodyMedium">
-                {`${monthLabel(month.monthKey)} can be closed from ${closingWindowLabel(closingWindow.start)} until ${closingWindowLabel(closingWindow.end)}. Until then you can keep editing the month, and the overview shows the option once it is time.`}
+                {t('close.window', {
+                  month: monthLabel(month.monthKey),
+                  start: closingWindowLabel(closingWindow.start),
+                  end: closingWindowLabel(closingWindow.end),
+                })}
               </Text>
             </Card.Content>
           </Card>
@@ -318,14 +328,14 @@ export default function CloseMonthScreen() {
 
       <Portal>
         <AppDialog visible={confirm} onDismiss={() => setConfirm(false)}>
-          <AppDialog.Title>Close {monthLabel(month.monthKey)}?</AppDialog.Title>
+          <AppDialog.Title>{t('close.confirmTitle', { month: monthLabel(month.monthKey) })}</AppDialog.Title>
           <AppDialog.Content>
             <Text variant="bodyMedium">
-              {`This is final and cannot be undone. ${monthLabel(month.monthKey)} cannot be reopened or edited afterwards, and its ending reserve balance is recorded as it stands now.`}
+              {t('close.confirmBody', { month: monthLabel(month.monthKey) })}
             </Text>
           </AppDialog.Content>
           <AppDialog.Actions>
-            <Button onPress={() => setConfirm(false)}>Cancel</Button>
+            <Button onPress={() => setConfirm(false)}>{t('common.cancel')}</Button>
             <Button
               loading={closing}
               onPress={async () => {
@@ -337,20 +347,20 @@ export default function CloseMonthScreen() {
                   );
                   setConfirm(false);
                   if (closed) {
-                    setToast(`${monthLabel(month.monthKey)} closed`);
+                    setToast(t('close.closedToast', { month: monthLabel(month.monthKey) }));
                     router.replace({
                       pathname: '/monthly-report/[monthKey]',
                       params: { monthKey: month.monthKey },
                     });
                   } else {
-                    setToast(`${monthLabel(month.monthKey)} was already closed`);
+                    setToast(t('close.alreadyClosedToast', { month: monthLabel(month.monthKey) }));
                   }
                 } finally {
                   setClosing(false);
                 }
               }}
             >
-              Close month
+              {t('close.closeMonth')}
             </Button>
           </AppDialog.Actions>
         </AppDialog>

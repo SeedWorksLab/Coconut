@@ -5,6 +5,7 @@ import { usePathname } from 'expo-router';
 import { Appbar } from 'react-native-paper';
 
 import { useAppData } from '../data/DataProvider';
+import { useI18n } from '../i18n';
 import { monthLabel } from '../utils/date';
 import { MonthPlanningEditor } from './month-planning-editor';
 import { useAppTheme } from '../theme';
@@ -33,6 +34,7 @@ const MAIN_ROUTES = ['/', '/transactions', '/statistics', '/shared'];
  */
 export function MonthPlanningOverlay() {
   const theme = useAppTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { ready, pendingMonthKey, startMonth } = useAppData();
@@ -54,7 +56,7 @@ export function MonthPlanningOverlay() {
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.header, { backgroundColor: theme.colors.surface, paddingTop: insets.top }]}>
           <Appbar.Header>
-            <Appbar.Content title={`Start ${monthLabel(pendingMonthKey)}`} />
+            <Appbar.Content title={t('planning.startMonth', { month: monthLabel(pendingMonthKey) })} />
           </Appbar.Header>
         </View>
         <MonthPlanningEditor

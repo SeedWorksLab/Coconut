@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { DEFAULT_LANGUAGE, isLanguage } from '../i18n/types';
 import type { Settings } from '../models';
 import { getDatabase } from './database';
 
@@ -9,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   themeMode: 'system',
   recentTransactionsCount: 5,
   username: null,
+  language: DEFAULT_LANGUAGE,
 };
 
 type SettingsKey =
@@ -17,7 +19,8 @@ type SettingsKey =
   | 'currency_symbol'
   | 'theme_mode'
   | 'recent_transactions_count'
-  | 'username';
+  | 'username'
+  | 'language';
 
 const SETTINGS_KEY_MAP: Record<keyof Settings, SettingsKey> = {
   monthlyAllowanceCents: 'monthly_allowance_cents',
@@ -26,6 +29,7 @@ const SETTINGS_KEY_MAP: Record<keyof Settings, SettingsKey> = {
   themeMode: 'theme_mode',
   recentTransactionsCount: 'recent_transactions_count',
   username: 'username',
+  language: 'language',
 };
 
 function rowToSettings(
@@ -54,6 +58,9 @@ function rowToSettings(
         break;
       case 'username':
         settings.username = row.value === '' ? null : row.value;
+        break;
+      case 'language':
+        settings.language = isLanguage(row.value) ? row.value : DEFAULT_LANGUAGE;
         break;
     }
   }

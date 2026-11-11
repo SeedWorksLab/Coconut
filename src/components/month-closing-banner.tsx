@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Text } from 'react-native-paper';
+import { useI18n } from '../i18n';
 import { monthLabel } from '../utils/date';
 import { useAppTheme } from '../theme';
 
@@ -16,6 +17,7 @@ interface MonthClosingBannerProps {
  */
 export function MonthClosingBanner({ monthKey, onPress }: MonthClosingBannerProps) {
   const theme = useAppTheme();
+  const { t } = useI18n();
   const onAccent = theme.text.onAccent;
 
   return (
@@ -23,7 +25,7 @@ export function MonthClosingBanner({ monthKey, onPress }: MonthClosingBannerProp
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={`${monthLabel(monthKey)} is coming to an end. Review and close the month.`}
+        accessibilityLabel={t('banner.accessibility', { month: monthLabel(monthKey) })}
         testID="month-closing-banner"
         style={({ pressed }) => [
           styles.banner,
@@ -36,10 +38,10 @@ export function MonthClosingBanner({ monthKey, onPress }: MonthClosingBannerProp
       >
         <View style={styles.text}>
           <Text variant="titleSmall" style={[styles.title, { color: onAccent }]}>
-            {monthLabel(monthKey)} is coming to an end
+            {t('banner.monthEnding', { month: monthLabel(monthKey) })}
           </Text>
           <Text variant="bodySmall" style={[styles.sub, { color: onAccent }]}>
-            Review how the month went, then close it
+            {t('banner.reviewClose')}
           </Text>
         </View>
         <MaterialCommunityIcons

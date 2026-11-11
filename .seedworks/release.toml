@@ -1,0 +1,91 @@
+schema = 1
+
+[app]
+name = "Coconut"
+slug = "coconut"
+repo = "SeedWorksLab/Coconut"
+description = "Offline-first personal budgeting and shared expenses."
+
+[release]
+tag_prefix = "v"
+staging_dir = "build/releases"
+title = "{name} {version}"
+checksums = true
+
+[version]
+command = ["node", "scripts/update-version.js", "{version}"]
+version_file = "app.json"
+version_path = "expo.version"
+version_code_path = "expo.android.versionCode"
+commit_paths = ["app.json", "src/config/release-info.ts"]
+
+[git]
+remote = "origin"
+commit_message = "Release {tag} (build {version_code})"
+tag_message = "{name} release {tag} (build {version_code})"
+
+[requirements]
+tools = ["node", "npm", "npx"]
+android_sdk = true
+java = true
+android_cmake = "3.22.1"
+android_ndk = "27.1.12297006"
+
+[build.env]
+CI = "1"
+
+[[build.steps]]
+name = "Generate native Android project"
+run = ["npx", "expo", "prebuild", "--platform", "android", "--no-install", "--clean"]
+
+[[build.steps]]
+name = "Restore package.json"
+run = ["git", "restore", "package.json"]
+
+[[build.steps]]
+name = "Build release APK"
+run = ["./gradlew", "assembleRelease", "--no-daemon"]
+cwd = "android"
+
+[[build.steps]]
+name = "Build Linux desktop app"
+run = ["npm", "run", "electron:build"]
+
+[[artifacts]]
+path = "android/app/build/outputs/apk/release/app-release.apk"
+name = "coconut-{version}.apk"
+platform = "Android"
+purpose = "Android APK signed with the debug keystore, for sideloading."
+
+[[artifacts]]
+path = "android/app/build/outputs/apk/release/app-release.apk"
+name = "coconut.apk"
+platform = "Android"
+purpose = "Stable download alias that always points at the latest Coconut APK."
+
+[[artifacts]]
+path = "release/*.AppImage"
+name = "coconut-{version}.AppImage"
+platform = "Linux"
+purpose = "Portable Linux desktop application (Electron AppImage)."
+
+[[artifacts]]
+path = "release/*.deb"
+name = "coconut-{version}.deb"
+platform = "Linux"
+purpose = "Debian/Ubuntu desktop package."
+optional = true
+
+[[artifacts]]
+path = "release/*.rpm"
+name = "coconut-{version}.rpm"
+platform = "Linux"
+purpose = "Fedora/RHEL desktop package."
+optional = true
+
+[[artifacts]]
+path = "release/*.zip"
+name = "coconut-{version}.zip"
+platform = "Linux"
+purpose = "Zipped desktop build."
+optional = true

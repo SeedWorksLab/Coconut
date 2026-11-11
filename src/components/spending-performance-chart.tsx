@@ -5,6 +5,7 @@ import { Text } from 'react-native-paper';
 import dayjs from 'dayjs';
 import type { RatingPerformancePoint } from '../database/queries';
 import { shortMonthLabel } from '../utils/date';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
 
 interface SpendingPerformanceChartProps {
@@ -31,6 +32,7 @@ const VALUE_LABEL_LIMIT = 4;
  */
 export function SpendingPerformanceChart({ points }: SpendingPerformanceChartProps) {
   const theme = useAppTheme();
+  const { t } = useI18n();
   const [width, setWidth] = useState(0);
 
   const handleLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width);
@@ -44,9 +46,9 @@ export function SpendingPerformanceChart({ points }: SpendingPerformanceChartPro
       : PADDING_SIDE + (plotWidth * index) / (points.length - 1);
 
   const series: SeriesEntry[] = [
-    { name: 'Regret', key: 'regret', color: theme.semantic.error },
-    { name: 'Neutral', key: 'neutral', color: theme.colors.outline },
-    { name: 'Good', key: 'good', color: theme.semantic.success },
+    { name: t('rating.regret'), key: 'regret', color: theme.semantic.error },
+    { name: t('rating.neutral'), key: 'neutral', color: theme.colors.outline },
+    { name: t('rating.worthIt'), key: 'good', color: theme.semantic.success },
   ];
 
   if (points.length === 0) {
