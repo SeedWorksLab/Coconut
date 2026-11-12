@@ -2,7 +2,7 @@
   "expo": {
     "name": "Coconut",
     "slug": "coconut",
-    "version": "1.2.2",
+    "version": "1.2.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -17,10 +17,12 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.coconut.app",
-      "permissions": ["REQUEST_INSTALL_PACKAGES"],
+      "permissions": [
+        "REQUEST_INSTALL_PACKAGES"
+      ],
       "minSdkVersion": 29,
       "predictiveBackGestureEnabled": false,
-      "versionCode": 19
+      "versionCode": 20
     },
     "web": {
       "favicon": "./assets/favicon.png"
