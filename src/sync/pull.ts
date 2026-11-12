@@ -119,6 +119,26 @@ async function findNaturalMatch(
   );
 }
 
+async function findSharedMirrorByOrigin(
+  db: SQLiteDatabase,
+  adapter: SyncTableAdapter,
+  values: Record<string, unknown>
+): Promise<{ id: number; uuid: string; updated_at: string | null } | null> {
+  if (
+    adapter.localTable !== 'transactions' ||
+    values.origin_type !== 'shared' ||
+    values.origin_id == null
+  ) {
+    return null;
+  }
+  return db.getFirstAsync<{ id: number; uuid: string; updated_at: string | null }>(
+    `SELECT id, uuid, updated_at FROM transactions
+      WHERE origin_type = 'shared' AND origin_id = ?
+      ORDER BY id ASC LIMIT 1`,
+    [toBindValue(values.origin_id)]
+  );
+}
+
 function captureInsertedParent(maps: FkMaps, adapter: SyncTableAdapter, values: Record<string, unknown>, id: number): void {
   const uuid = values.uuid as string | null;
   if (!uuid) {
@@ -226,8 +246,12 @@ async function applyRemoteRow(
     `SELECT id, uuid, updated_at FROM ${adapter.localTable} WHERE uuid = ?`,
     [uuid]
   );
-  const naturalMatch = existing ? null : await findNaturalMatch(db, adapter, values);
-  const target = existing ?? naturalMatch;
+  const sharedMatch = existing
+    ? null
+    : await findSharedMirrorByOrigin(db, adapter, values);
+  const naturalMatch =
+    existing || sharedMatch ? null : await findNaturalMatch(db, adapter, values);
+  const target = existing ?? sharedMatch ?? naturalMatch;
 
   if (target) {
     if (!isRemoteNewer(target.updated_at, remoteUpdatedAt)) {

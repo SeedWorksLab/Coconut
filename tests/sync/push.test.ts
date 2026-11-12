@@ -156,8 +156,7 @@ class FakeClient {
 }
 
 class FakeBuilder {
-  private whereColumn: string | null = null;
-  private whereValue: unknown = null;
+  private filters: Array<[string, unknown]> = [];
 
   constructor(
     private readonly fakeClient: FakeClient,
@@ -169,8 +168,7 @@ class FakeBuilder {
   }
 
   eq(column: string, value: unknown): this {
-    this.whereColumn = column;
-    this.whereValue = value;
+    this.filters.push([column, value]);
     return this;
   }
 
@@ -180,7 +178,7 @@ class FakeBuilder {
       return Promise.resolve({ data: null });
     }
     for (const row of table.values()) {
-      if (row[this.whereColumn as string] === this.whereValue) {
+      if (this.filters.every(([column, value]) => row[column] === value)) {
         return Promise.resolve({ data: row });
       }
     }
@@ -351,6 +349,48 @@ describe('pushChanges full-sync seeding and healing', () => {
       (entry) => entry.table === 'transactions' && entry.row.uuid === 'tx-1'
     );
     expect(logged).toBeDefined();
+  });
+
+  it('updates the existing remote mirror instead of creating a second copy', async () => {
+    const db = freshDb();
+    insertMonth(db, '2026-09');
+    insertWithSuppressedTriggers(
+      db,
+      `INSERT INTO transactions
+         (month_key, date, amount_cents, merchant, origin_type, origin_id)
+       VALUES ('2026-09', '2026-09-18', 4000, 'Dinner', 'shared', 'expense-1')`
+    );
+    insertWithSuppressedTriggers(
+      db,
+      `UPDATE transactions
+          SET uuid = 'local-mirror', updated_at = '2026-09-18T10:00:00.000Z'
+        WHERE id = 1`
+    );
+    const client = new FakeClient();
+    client.tables.get('transactions')!.set('remote-mirror', {
+      uuid: 'remote-mirror',
+      user_id: 'user-1',
+      month_key: '2026-09',
+      date: '2026-09-18',
+      amount_cents: 4000,
+      merchant: 'Dinner',
+      origin_type: 'shared',
+      origin_id: 'expense-1',
+      updated_at: '2026-09-18T09:00:00.000Z',
+    });
+
+    await pushAll(db, client);
+
+    const mirrors = [...client.tables.get('transactions')!.values()].filter(
+      (row) => row.origin_id === 'expense-1'
+    );
+    expect(mirrors).toHaveLength(1);
+    expect(mirrors[0].uuid).toBe('remote-mirror');
+    expect(
+      client.upsertLog.find(
+        (entry) => entry.table === 'transactions' && entry.row.origin_id === 'expense-1'
+      )?.row.uuid
+    ).toBe('remote-mirror');
   });
 
   it('skips and prunes a row whose remote copy is strictly newer', async () => {

@@ -679,4 +679,46 @@ ALTER TABLE months ADD COLUMN closing_verdict TEXT;
 ALTER TABLE month_budgets ADD COLUMN active INTEGER NOT NULL DEFAULT 1;
 `,
   },
+  {
+    id: 18,
+    description: 'One linked transaction per shared expense',
+    // A linked transaction is derived from a shared expense, so two devices
+    // must never keep separate personal copies of the same expense. Older
+    // builds could create such copies with different local uuids; collapse them
+    // to the row carrying the most user-entered metadata, then enforce the
+    // invariant. The delete is guarded so it does not emit remote tombstones:
+    // the remote cleanup is done by its own migration and old remote copies are
+    // harmless once every pull is matched by origin_id.
+    sql: `
+INSERT INTO sync_meta (key, value)
+VALUES ('pull_in_progress', '1')
+ON CONFLICT (key) DO UPDATE SET value = excluded.value;
+
+DELETE FROM transactions
+ WHERE origin_type = 'shared'
+   AND origin_id IS NOT NULL
+   AND id NOT IN (
+     SELECT id FROM (
+       SELECT id,
+              ROW_NUMBER() OVER (
+                PARTITION BY origin_id
+                ORDER BY (attachment IS NOT NULL) DESC,
+                         (rating IS NOT NULL) DESC,
+                         (budget_id IS NOT NULL) DESC,
+                         updated_at DESC,
+                         id DESC
+              ) AS row_number
+         FROM transactions
+        WHERE origin_type = 'shared' AND origin_id IS NOT NULL
+     )
+     WHERE row_number = 1
+   );
+
+UPDATE sync_meta SET value = '0' WHERE key = 'pull_in_progress';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_shared_origin
+  ON transactions (origin_id)
+  WHERE origin_id IS NOT NULL;
+`,
+  },
 ];

@@ -153,11 +153,48 @@ function pushFkResolver(maps: FkMaps) {
   };
 }
 
-async function remoteUpdatedAtOf(
+function isSharedMirror(
+  adapter: SyncTableAdapter,
+  localRow: { [key: string]: unknown }
+): boolean {
+  return (
+    adapter.localTable === 'transactions' &&
+    localRow.origin_type === 'shared' &&
+    localRow.origin_id != null
+  );
+}
+
+interface RemoteCopy {
+  uuid: string;
+  updated_at: string | null;
+}
+
+async function remoteCopyOf(
   client: CoconutClient,
   adapter: SyncTableAdapter,
-  rowKey: string
-): Promise<string | null> {
+  rowKey: string,
+  userId: string,
+  localRow: { [key: string]: unknown }
+): Promise<RemoteCopy | null> {
+  if (isSharedMirror(adapter, localRow)) {
+    const { data, error } = await client
+      .from(adapter.remoteTable)
+      .select('uuid, updated_at')
+      .eq('user_id', userId)
+      .eq('origin_type', 'shared')
+      .eq('origin_id', String(localRow.origin_id))
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Lookup failed for ${adapter.remoteTable}: ${error.message}`);
+    }
+    return data
+      ? {
+          uuid: data.uuid as string,
+          updated_at: (data.updated_at as string | null) ?? null,
+        }
+      : null;
+  }
+
   if (adapter.identityColumn === 'month_key') {
     const { data, error } = await client
       .from(adapter.remoteTable)
@@ -167,7 +204,12 @@ async function remoteUpdatedAtOf(
     if (error) {
       throw new Error(`Lookup failed for ${adapter.remoteTable}: ${error.message}`);
     }
-    return data ? (data.updated_at as string | null) : null;
+    return data
+      ? {
+          uuid: rowKey,
+          updated_at: (data.updated_at as string | null) ?? null,
+        }
+      : null;
   }
   const { data, error } = await client
     .from(adapter.remoteTable)
@@ -177,7 +219,12 @@ async function remoteUpdatedAtOf(
   if (error) {
     throw new Error(`Lookup failed for ${adapter.remoteTable}: ${error.message}`);
   }
-  return data ? (data.updated_at as string | null) : null;
+  return data
+    ? {
+        uuid: data.uuid as string,
+        updated_at: (data.updated_at as string | null) ?? null,
+      }
+    : null;
 }
 
 async function pushRow(
@@ -194,7 +241,9 @@ async function pushRow(
     return;
   }
 
-  const remoteUpdatedAt = await remoteUpdatedAtOf(client, adapter, entry.row_key);
+  const sharedMirror = isSharedMirror(adapter, localRow);
+  const remote = await remoteCopyOf(client, adapter, entry.row_key, userId, localRow);
+  const remoteUpdatedAt = remote?.updated_at ?? null;
   const localUpdatedAt = (localRow.updated_at as string | null) ?? null;
   // Only a strictly newer local write may replace an existing remote row. Ties
   // are exactly the rows a pull already wrote locally (and possibly nulled an
@@ -207,14 +256,21 @@ async function pushRow(
 
   const payload: Record<string, unknown> = {
     user_id: userId,
-    uuid: localRow.uuid ?? null,
+    // A mirror is identified by its shared expense, not by the local uuid that
+    // each device happened to generate. Reuse the remote uuid so the two copies
+    // converge on one row instead of duplicating the expense.
+    uuid: remote?.uuid ?? localRow.uuid ?? null,
     updated_at: localUpdatedAt ?? new Date().toISOString(),
     ...adapter.toRemote(localRow, pushFkResolver(maps)),
   };
 
   const table = client.from(adapter.remoteTable);
   const onConflict =
-    adapter.identityColumn === 'month_key' ? 'user_id,month_key' : 'uuid';
+    adapter.identityColumn === 'month_key'
+      ? 'user_id,month_key'
+      : sharedMirror
+        ? 'user_id,origin_id'
+        : 'uuid';
   const { error } = await table.upsert(payload, { onConflict });
   if (error) {
     throw new Error(`Push failed for ${adapter.remoteTable}: ${error.message}`);

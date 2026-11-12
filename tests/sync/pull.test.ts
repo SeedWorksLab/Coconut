@@ -538,6 +538,54 @@ describe('pullChanges', () => {
     expect(tx.budget_id).toBeNull();
   });
 
+  it('matches a shared mirror by origin instead of creating a second copy', async () => {
+    const raw = freshDb();
+    raw.exec(
+      `INSERT INTO months (month_key, allowance_cents, starting_reserve_cents)
+       VALUES ('2026-09', 50000, 0)`
+    );
+    raw.exec(
+      `INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('pull_in_progress', '1')`
+    );
+    raw
+      .prepare(
+        `INSERT INTO transactions
+           (uuid, month_key, date, amount_cents, merchant, origin_type, origin_id, updated_at)
+         VALUES (?, '2026-09', '2026-09-18', 4000, 'Dinner', 'shared', 'expense-1', ?)`
+      )
+      .run('local-mirror', '2026-09-18T09:00:00.000Z');
+    raw.exec(`UPDATE sync_meta SET value = '0' WHERE key = 'pull_in_progress'`);
+
+    const client = new FakeClient();
+    client.seed('transactions', {
+      uuid: 'remote-mirror',
+      user_id: 'user-1',
+      month_key: '2026-09',
+      date: '2026-09-18',
+      amount_cents: 5000,
+      budget_uuid: null,
+      merchant: 'Dinner edited',
+      note: 'Shared expense',
+      origin_type: 'shared',
+      origin_id: 'expense-1',
+      rating: null,
+      updated_at: UPDATED,
+    });
+
+    await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
+
+    const mirrors = raw
+      .prepare(
+        `SELECT uuid, amount_cents, merchant FROM transactions
+          WHERE origin_type = 'shared' AND origin_id = 'expense-1'`
+      )
+      .all() as Array<{ uuid: string; amount_cents: number; merchant: string }>;
+    expect(mirrors).toHaveLength(1);
+    expect(mirrors[0].uuid).toBe('local-mirror');
+    expect(mirrors[0].amount_cents).toBe(5000);
+    expect(mirrors[0].merchant).toBe('Dinner edited');
+  });
+
   it('walks past the first PostgREST page', async () => {
     const raw = freshDb();
     const client = new FakeClient();

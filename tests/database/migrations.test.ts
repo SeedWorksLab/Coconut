@@ -348,3 +348,48 @@ describe('migration 11 and schema self-heal (sync_state.last_sync_error)', () =>
     );
   });
 });
+
+describe('migration 18 (one linked transaction per shared expense)', () => {
+  it('collapses duplicate mirrors and prevents new ones', () => {
+    const db = new DatabaseSync(':memory:');
+    applyMigrations(db, 1, 17);
+    db.exec(
+      `INSERT INTO months (month_key, allowance_cents, starting_reserve_cents)
+       VALUES ('2026-09', 100000, 0)`
+    );
+    db.exec(
+      `INSERT INTO transactions
+         (month_key, date, amount_cents, merchant, origin_type, origin_id)
+       VALUES
+         ('2026-09', '2026-09-10', 4000, 'Dinner', 'shared', 'expense-1'),
+         ('2026-09', '2026-09-10', 4000, 'Dinner', 'shared', 'expense-1')`
+    );
+
+    applyMigrations(db, 18, 18);
+
+    const mirrors = db
+      .prepare(
+        `SELECT id FROM transactions
+          WHERE origin_type = 'shared' AND origin_id = 'expense-1'`
+      )
+      .all();
+    expect(mirrors).toHaveLength(1);
+    expect(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM sync_tombstones WHERE table_name = 'transactions'`
+          )
+          .get() as { n: number }
+      ).n
+    ).toBe(0);
+
+    expect(() =>
+      db.exec(
+        `INSERT INTO transactions
+           (month_key, date, amount_cents, merchant, origin_type, origin_id)
+         VALUES ('2026-09', '2026-09-10', 4000, 'Dinner', 'shared', 'expense-1')`
+      )
+    ).toThrow(/UNIQUE/i);
+  });
+});

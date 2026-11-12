@@ -58,12 +58,6 @@ platform = "Android"
 purpose = "Android APK signed with the debug keystore, for sideloading."
 
 [[artifacts]]
-path = "android/app/build/outputs/apk/release/app-release.apk"
-name = "coconut.apk"
-platform = "Android"
-purpose = "Stable download alias that always points at the latest Coconut APK."
-
-[[artifacts]]
 path = "release/*.AppImage"
 name = "coconut-{version}.AppImage"
 platform = "Linux"
