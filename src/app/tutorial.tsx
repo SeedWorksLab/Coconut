@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Appbar, Button, Icon, SegmentedButtons, Text } from 'react-native-paper';
+import { Appbar, Button, Icon, Text } from 'react-native-paper';
 
 import { tutorialPages } from '../config/tutorial';
-import { useAppData } from '../data/DataProvider';
-import { LANGUAGES, useI18n, type Language } from '../i18n';
+import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
 import { FadeIn } from '../components/fade-in';
 import { setTutorialSeen } from '../database/tutorialPrefs';
@@ -14,7 +13,6 @@ export default function TutorialScreen() {
   const theme = useAppTheme();
   const router = useRouter();
   const { t } = useI18n();
-  const { settings, setLanguage } = useAppData();
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -46,25 +44,6 @@ export default function TutorialScreen() {
       </Appbar.Header>
 
       <View style={styles.content}>
-        {index === 0 ? (
-          <View style={styles.languageBlock}>
-            <Text variant="titleMedium" style={styles.languageTitle}>
-              {t('tutorial.languageTitle')}
-            </Text>
-            <Text variant="bodySmall" style={styles.languageDescription}>
-              {t('tutorial.languageDescription')}
-            </Text>
-            <SegmentedButtons
-              value={settings.language}
-              onValueChange={(value) => void setLanguage(value as Language)}
-              buttons={LANGUAGES.map((language) => ({
-                value: language.code,
-                label: language.nativeLabel,
-              }))}
-            />
-          </View>
-        ) : null}
-
         <FadeIn key={index} style={styles.page}>
           <View style={[styles.iconCircle, { backgroundColor: theme.colors.primaryContainer }]}>
             <Icon source={page.icon} size={46} color={theme.colors.onPrimaryContainer} />
@@ -121,18 +100,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingBottom: 24,
     justifyContent: 'space-between',
-  },
-  languageBlock: {
-    paddingTop: 8,
-    gap: 6,
-  },
-  languageTitle: {
-    textAlign: 'center',
-  },
-  languageDescription: {
-    textAlign: 'center',
-    opacity: 0.7,
-    marginBottom: 6,
   },
   page: {
     flex: 1,

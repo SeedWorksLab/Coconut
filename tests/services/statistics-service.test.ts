@@ -229,6 +229,15 @@ describe('ratingSharesForMonth', () => {
     ).toEqual({ regret: 25, neutral: 25, good: 50 });
   });
 
+  it('omits ignored transactions from the quality shares', () => {
+    expect(ratingSharesForMonth([
+      transaction(1, 5000, '2026-09-10', 'ignore'),
+      transaction(1, 1000, '2026-09-11', 'regret'),
+      transaction(1, 2000, '2026-09-12', 'good'),
+    ])).toEqual({ regret: 50, neutral: 0, good: 50 });
+    expect(ratingSharesForMonth([transaction(1, 5000, '2026-09-10', 'ignore')])).toBeNull();
+  });
+
   it('rounds a third share to a whole percentage', () => {
     expect(
       ratingSharesForMonth([

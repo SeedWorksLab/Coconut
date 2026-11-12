@@ -1,16 +1,29 @@
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 import { DATABASE_NAME } from '../utils/date';
 import { MIGRATIONS, subscriptionRepairSql } from './migrations';
+import { recoverPullGuard } from './pull-guard-recovery';
 
 let dbPromise: Promise<SQLiteDatabase> | null = null;
 
 export function getDatabase(): Promise<SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = openDatabaseAsync(DATABASE_NAME).then(async (db) => {
-      await db.execAsync('PRAGMA journal_mode = WAL;');
-      await db.execAsync('PRAGMA recursive_triggers = OFF;');
-      await migrate(db);
-      return db;
+      try {
+        await db.execAsync('PRAGMA journal_mode = WAL;');
+        await db.execAsync('PRAGMA recursive_triggers = OFF;');
+        await migrate(db);
+        await recoverPullGuard(db);
+        return db;
+      } catch (error) {
+        await db.closeAsync().catch(() => undefined);
+        throw error;
+      }
+    });
+    const pending = dbPromise;
+    pending.catch(() => {
+      if (dbPromise === pending) {
+        dbPromise = null;
+      }
     });
   }
   return dbPromise;

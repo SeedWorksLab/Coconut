@@ -262,6 +262,9 @@ export default function CloseMonthScreen() {
           />
           <Card.Content>
             <RatingLegend />
+            <Text variant="bodySmall" style={{ color: theme.text.secondary }}>
+              {t('close.ignoreDescription')}
+            </Text>
             {transactions.length === 0 ? (
               <Text variant="bodyMedium" style={styles.empty}>
                 {t('close.noTransactions')}

@@ -103,6 +103,14 @@ describe('row serialization', () => {
     expect(remote.budget_uuid).toBeNull();
   });
 
+  it('round-trips the exclusion flag on synced transactions', () => {
+    const adapter = adapterFor('transactions');
+    expect(adapter.toRemote({ rating: null, rating_excluded: 1 }, () => null))
+      .toMatchObject({ rating: null, rating_excluded: true });
+    expect(adapter.fromRemote({ rating: null, rating_excluded: true }, () => null))
+      .toMatchObject({ rating: null, rating_excluded: 1 });
+  });
+
   it('carries month_key through month children without mapping', () => {
     const adapter = adapterFor('income');
     const remote = adapter.toRemote(
@@ -147,6 +155,7 @@ describe('row serialization', () => {
       'theme_mode',
       'recent_transactions_count',
       'username',
+      'language',
     ]);
     expect(SYNC_SETTINGS_KEYS as readonly string[]).not.toContain('tutorial_seen');
   });

@@ -121,7 +121,7 @@ export interface MonthPlanEvent {
  * before closing it. A missing rating means the user never judged the purchase
  * and counts as neutral, so the month can always be closed.
  */
-export const TRANSACTION_RATINGS = ['regret', 'neutral', 'good'] as const;
+export const TRANSACTION_RATINGS = ['regret', 'neutral', 'good', 'ignore'] as const;
 
 export type TransactionRating = (typeof TRANSACTION_RATINGS)[number];
 

@@ -11,6 +11,20 @@ export interface WhatsNewEntry {
 
 export const whatsNew: WhatsNewEntry[] = [
   {
+    version: '1.2.3',
+    releasedAt: '2026-11-12T00:00:00.000Z',
+    intro: 'More control over your data, your first launch, and the way Coconut stays up to date.',
+    features: [
+      'Pull down on the Transactions screen to fetch your latest personal transactions from the cloud when sync is enabled',
+      'On your first launch, sign in to an existing account and restore your data before taking the tutorial',
+      'Your language choice now syncs across devices connected to your cloud account',
+      'Android can download a release APK and hand it to the installer; the Linux desktop app can download and install an AppImage update',
+      'Ignore a purchase during month closing to leave it out of spending-quality charts without changing spending totals',
+      'The home screen shows what percentage of the combined flexible-budget plan has been spent',
+      'Reliability audit: desktop update checks respect your preference, unavailable updates are not downloaded, invalid local file paths are rejected, and a vulnerable tooling dependency is patched',
+    ],
+  },
+  {
     version: '1.2.0',
     releasedAt: '2026-10-29T00:00:00.000Z',
     intro:

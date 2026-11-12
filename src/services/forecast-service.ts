@@ -65,6 +65,17 @@ export function budgetStatus(plannedAmountCents: number, spentCents: number): Bu
   };
 }
 
+export function totalBudgetUsedPercent(
+  statuses: readonly Pick<BudgetStatus, 'spentCents'>[],
+  plannedTotalCents: number
+): number | null {
+  if (plannedTotalCents <= 0) {
+    return null;
+  }
+  const spentTotalCents = statuses.reduce((total, status) => total + status.spentCents, 0);
+  return Math.round((spentTotalCents / plannedTotalCents) * 100);
+}
+
 export interface BudgetAvailableEntry {
   budgetId: number;
   plannedCents: number;

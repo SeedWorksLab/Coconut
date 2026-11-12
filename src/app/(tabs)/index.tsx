@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from '../../components/keyboard-aware-scroll-view';
 import { Button, Card, FAB, List, Text, TouchableRipple } from 'react-native-paper';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { formatCents, formatSignedCents } from '../../utils/currency';
 import { EVERGREEN_MONTH_KEY, monthLabel, monthProgress, relativeDayLabel } from '../../utils/date';
 import { StatCard, type Tone } from '../../components/stat-card';
 import { reserveDrawBehindPlan } from '../../services/allowance-service';
+import { totalBudgetUsedPercent } from '../../services/forecast-service';
 import { MonthProgressBar } from '../../components/month-progress-bar';
 import { LoadingScreen } from '../../components/loading-screen';
 import { CoconutLogo } from '../../components/coconut-logo';
@@ -17,6 +18,7 @@ import { ScreenFade } from '../../components/screen-fade';
 import { FadeIn } from '../../components/fade-in';
 import { AnimatedNumber } from '../../components/animated-number';
 import { MonthClosingBanner } from '../../components/month-closing-banner';
+import { ScreenToast } from '../../components/screen-toast';
 import { findClosableMonth } from '../../services/month-closing-service';
 import dayjs from 'dayjs';
 
@@ -29,10 +31,24 @@ export default function OverviewScreen() {
     currentMonth,
     allMonths,
     allSubscriptions,
+    syncPersonalAndRefresh,
   } = useAppData();
   const theme = useAppTheme();
   const router = useRouter();
   const { t, language } = useI18n();
+  const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const handlePullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await syncPersonalAndRefresh();
+    } catch {
+      setToast(t('sync.syncFailed'));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [syncPersonalAndRefresh, t]);
 
   if (!ready) {
     return <LoadingScreen />;
@@ -45,6 +61,10 @@ export default function OverviewScreen() {
   const symbol = settings.currencySymbol;
   const reserved = currentMonth.isClosed;
   const subscriptionById = new Map(allSubscriptions.map((entry) => [entry.id, entry]));
+  const budgetUsedPercent = totalBudgetUsedPercent(
+    budgetStatuses.map(({ status }) => status),
+    forecast.budgetPlannedTotalCents
+  );
 
   const remaining = forecast.remainingVsPlanCents;
   const elapsed = monthProgress();
@@ -57,7 +77,18 @@ export default function OverviewScreen() {
   return (
     <ScreenFade>
       <View style={styles.screen}>
-        <KeyboardAwareScrollView contentContainerStyle={styles.container}>
+        <KeyboardAwareScrollView
+          contentContainerStyle={styles.container}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void handlePullRefresh()}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+              progressBackgroundColor={theme.colors.surface}
+            />
+          }
+        >
       {closableMonth ? (
         <MonthClosingBanner
           monthKey={closableMonth.monthKey}
@@ -238,7 +269,10 @@ export default function OverviewScreen() {
       </Card>
 
       <Card mode="elevated" style={styles.card} contentStyle={styles.cardContent}>
-        <Card.Title title={t('overview.flexibleBudgets')} subtitle={t('overview.planned', { amount: formatCents(forecast.budgetPlannedTotalCents, symbol) })} />
+        <Card.Title
+          title={t('overview.flexibleBudgets')}
+          subtitle={`${t('overview.planned', { amount: formatCents(forecast.budgetPlannedTotalCents, symbol) })} · ${budgetUsedPercent === null ? '—' : t('overview.percentUsed', { percent: budgetUsedPercent })}`}
+        />
         <Card.Content>
           {budgetStatuses.length === 0 ? (
             <Text variant="bodyMedium" style={styles.empty}>
@@ -335,6 +369,7 @@ export default function OverviewScreen() {
       </KeyboardAwareScrollView>
       <FAB icon="plus" style={styles.fab} onPress={() => router.push('/transaction/new')} />
       </View>
+      <ScreenToast visible={toast !== null} message={toast} onDismiss={() => setToast(null)} />
     </ScreenFade>
   );
 }

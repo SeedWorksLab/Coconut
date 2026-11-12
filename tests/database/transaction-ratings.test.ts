@@ -2,6 +2,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { MIGRATIONS } from '../../src/database/migrations';
+import { getRatingPerformance } from '../../src/database/queries';
 import {
   createTransaction,
   getMonthTransactions,
@@ -69,6 +70,20 @@ function seed(raw: DatabaseSync): number {
 }
 
 describe('transaction ratings', () => {
+  it('migrates existing rated transactions without changing their ratings or amounts', async () => {
+    const raw = new DatabaseSync(':memory:');
+    for (const migration of MIGRATIONS.filter((entry) => entry.id < 19)) {
+      raw.exec(migration.sql);
+    }
+    const id = seed(raw);
+    raw.prepare("UPDATE transactions SET rating = 'regret' WHERE id = ?").run(id);
+    raw.exec(MIGRATIONS.find((entry) => entry.id === 19)!.sql);
+    expect((await getMonthTransactions(MONTH_KEY, makeDbApi(raw) as never))[0])
+      .toMatchObject({ rating: 'regret', amountCents: 4500 });
+    expect(raw.prepare('SELECT rating_excluded FROM transactions WHERE id = ?').get(id))
+      .toMatchObject({ rating_excluded: 0 });
+  });
+
   it('has no rating until one is chosen', async () => {
     const raw = freshDb();
     const id = seed(raw);
@@ -92,6 +107,40 @@ describe('transaction ratings', () => {
     await setTransactionRating(id, 'neutral', makeDbApi(raw) as never);
     const [transaction] = await getMonthTransactions(MONTH_KEY, makeDbApi(raw) as never);
     expect(transaction.rating).toBe('neutral');
+  });
+
+  it('persists ignore separately from rating and restores a chosen rating', async () => {
+    const raw = freshDb();
+    const id = seed(raw);
+    const db = makeDbApi(raw) as never;
+    await setTransactionRating(id, 'ignore', db);
+    expect((await getMonthTransactions(MONTH_KEY, db))[0].rating).toBe('ignore');
+    expect(raw.prepare('SELECT rating, rating_excluded FROM transactions WHERE id = ?').get(id))
+      .toMatchObject({ rating: null, rating_excluded: 1 });
+    await setTransactionRating(id, 'good', db);
+    expect((await getMonthTransactions(MONTH_KEY, db))[0].rating).toBe('good');
+    expect(raw.prepare('SELECT rating, rating_excluded FROM transactions WHERE id = ?').get(id))
+      .toMatchObject({ rating: 'good', rating_excluded: 0 });
+  });
+
+  it('omits ignored purchases from the quality chart but keeps their spending', async () => {
+    const raw = freshDb();
+    const first = seed(raw);
+    const second = Number(raw.prepare(
+      `INSERT INTO transactions (month_key, date, amount_cents, merchant)
+       VALUES (?, '2026-09-15', 12000, 'Train')`
+    ).run(MONTH_KEY).lastInsertRowid);
+    const db = makeDbApi(raw) as never;
+    await setTransactionRating(first, 'ignore', db);
+    await setTransactionRating(second, 'good', db);
+    raw.prepare('UPDATE months SET is_closed = 1 WHERE month_key = ?').run(MONTH_KEY);
+    expect(await getRatingPerformance(db)).toEqual([
+      { monthKey: MONTH_KEY, regret: 0, neutral: 0, good: 100 },
+    ]);
+    expect(raw.prepare('SELECT SUM(amount_cents) AS total FROM transactions WHERE month_key = ?').get(MONTH_KEY))
+      .toMatchObject({ total: 16500 });
+    await setTransactionRating(second, 'ignore', db);
+    expect(await getRatingPerformance(db)).toEqual([]);
   });
 
   it('keeps ratings per transaction', async () => {
@@ -174,6 +223,20 @@ describe('transaction ratings', () => {
     expect(transaction.id).toBe(id);
     expect(transaction.amountCents).toBe(3400);
     expect(transaction.rating).toBe('regret');
+  });
+
+  it('keeps an ignored shared purchase ignored when it is re-derived', async () => {
+    const raw = freshDb();
+    seedMonth(raw);
+    const db = makeDbApi(raw) as never;
+    const input = {
+      date: '2026-09-18', amountCents: 3000, budgetId: null,
+      merchant: 'Shared dinner', note: null, attachment: null,
+    };
+    const id = await upsertSharedTransaction('shared-expense-ignore', input, db);
+    await setTransactionRating(id, 'ignore', db);
+    await upsertSharedTransaction('shared-expense-ignore', { ...input, amountCents: 3400 }, db);
+    expect((await getMonthTransactions(MONTH_KEY, db))[0].rating).toBe('ignore');
   });
 
   it('keeps a rating when the shared expense moves to another month', async () => {

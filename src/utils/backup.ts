@@ -3,6 +3,7 @@ import * as Sharing from 'expo-sharing';
 import { backupDatabaseAsync, openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 import dayjs from 'dayjs';
 import { getDatabase, resetDatabase } from '../database/database';
+import { validateBackupDatabase } from '../database/backup-validation';
 import { BACKUP_EXTENSION } from './date';
 import { toFilePath } from './paths';
 
@@ -52,6 +53,7 @@ export async function restoreFromBackup(fileUri: string): Promise<void> {
   let tempDb: SQLiteDatabase | null = null;
   try {
     tempDb = await openDatabaseAsync(tempName, {}, toFilePath(Paths.cache.uri));
+    await validateBackupDatabase(tempDb);
     const db = await getDatabase();
     await backupDatabaseAsync({ sourceDatabase: tempDb, destDatabase: db });
   } finally {

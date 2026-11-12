@@ -26,6 +26,15 @@ function insertTransaction(db: DatabaseSync, amountCents: number, merchant: stri
 }
 
 describe('sync change-capture triggers (migration 7 + 9)', () => {
+  it('preserves supplied personal and shared UUIDs when their timestamps are missing', () => {
+    const db = new DatabaseSync(':memory:');
+    applyMigrations(db, 1, 20);
+    db.exec("INSERT INTO budgets (uuid, name) VALUES ('stable-budget', 'Groceries')");
+    db.exec("INSERT INTO shared_spaces (uuid, name) VALUES ('stable-space', 'Home')");
+    expect(db.prepare('SELECT uuid FROM budgets').get()).toMatchObject({ uuid: 'stable-budget' });
+    expect(db.prepare('SELECT uuid FROM shared_spaces').get()).toMatchObject({ uuid: 'stable-space' });
+    db.close();
+  });
   it('applies the full migration chain on a fresh database', () => {
     const db = freshDb();
     db.exec(

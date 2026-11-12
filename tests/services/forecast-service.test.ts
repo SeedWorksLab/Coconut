@@ -9,6 +9,7 @@ import type {
 import {
   budgetAvailableAmounts,
   budgetStatus,
+  totalBudgetUsedPercent,
   fixedExpenseAmount,
   forecastMonth,
   incomeTotal,
@@ -137,6 +138,24 @@ describe('budgetStatus', () => {
     const status = budgetStatus(30000, 35000);
     expect(status.remainingCents).toBe(-5000);
     expect(status.differenceCents).toBe(5000);
+  });
+});
+
+describe('totalBudgetUsedPercent', () => {
+  it('reports combined budget spending against the combined plan', () => {
+    expect(totalBudgetUsedPercent([budgetStatus(30000, 18000), budgetStatus(20000, 7000)], 50000)).toBe(50);
+    expect(totalBudgetUsedPercent([budgetStatus(30000, 0)], 30000)).toBe(0);
+    expect(totalBudgetUsedPercent([budgetStatus(30000, 30000)], 30000)).toBe(100);
+  });
+
+  it('rounds to a whole percentage and does not cap overspending', () => {
+    expect(totalBudgetUsedPercent([budgetStatus(30000, 10000)], 30000)).toBe(33);
+    expect(totalBudgetUsedPercent([budgetStatus(30000, 45000)], 30000)).toBe(150);
+  });
+
+  it('does not calculate a percentage without a positive plan', () => {
+    expect(totalBudgetUsedPercent([], 0)).toBeNull();
+    expect(totalBudgetUsedPercent([budgetStatus(0, 5000)], 0)).toBeNull();
   });
 });
 

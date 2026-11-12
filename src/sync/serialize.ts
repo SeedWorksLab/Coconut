@@ -225,6 +225,7 @@ export const COMPLETE_ADAPTERS: SyncTableAdapter[] = [
       { local: 'origin_type', remote: 'origin_type' },
       { local: 'origin_id', remote: 'origin_id' },
       { local: 'rating', remote: 'rating' },
+      { local: 'rating_excluded', remote: 'rating_excluded', booleanType: true },
     ],
   }),
 ];
@@ -236,4 +237,5 @@ export const SYNC_SETTINGS_KEYS = [
   'theme_mode',
   'recent_transactions_count',
   'username',
+  'language',
 ] as const;

@@ -657,6 +657,24 @@ describe('pullSharedChanges', () => {
     expect(uuids).not.toContain('split-1');
   });
 
+  it('keeps an older tombstone authoritative over a stale row during an incremental pull', async () => {
+    const raw = freshDb();
+    const client = new FakeClient();
+    seedRemote(client);
+    await pullSharedChanges(client as never, makeDbApi(raw) as never);
+    expect(raw.prepare("SELECT COUNT(*) AS count FROM shared_expense_splits WHERE uuid = 'split-1'").get()).toMatchObject({ count: 1 });
+    const splits = client.tables.get('shared_expense_splits') as Map<string, PostgrestRow>;
+    splits.get('split-1')!.updated_at = '2026-09-20T00:00:00.000Z';
+    client.seed('shared_sync_tombstones', {
+      space_uuid: 'space-1', table_name: 'shared_expense_splits',
+      row_key: 'split-1', deleted_at: '2026-09-10T00:00:00.000Z',
+    });
+
+    await pullSharedChanges(client as never, makeDbApi(raw) as never, '2026-09-15T00:00:00.000Z');
+
+    expect(raw.prepare("SELECT COUNT(*) AS count FROM shared_expense_splits WHERE uuid = 'split-1'").get()).toMatchObject({ count: 0 });
+  });
+
   it('updates a linked personal transaction to the new split amount after an edit sync', async () => {
     const raw = freshDb();
     const api = makeDbApi(raw) as never;

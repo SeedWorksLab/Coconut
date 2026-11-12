@@ -2,6 +2,20 @@ import type { WhatsNewEntry } from './whats-new';
 
 export const whatsNewHu: WhatsNewEntry[] = [
   {
+    version: '1.2.3',
+    releasedAt: '2026-11-12T00:00:00.000Z',
+    intro: 'Több kontroll az adataid, az első indítás és a Coconut frissítései felett.',
+    features: [
+      'Húzd le a Tranzakciók képernyőt, hogy bekapcsolt szinkronizálás mellett lekérd a legújabb személyes tranzakcióidat a felhőből',
+      'Az első indításkor bejelentkezhetsz meglévő fiókoddal, és visszaállíthatod az adataidat a bemutató előtt',
+      'A nyelvválasztásod mostantól szinkronizálódik a felhőfiókodhoz kapcsolódó eszközök között',
+      'Androidon letölthető a kiadás APK-ja, amelyet a telepítő nyit meg; a Linux asztali alkalmazás letöltheti és telepítheti az AppImage-frissítést',
+      'A hónap lezárásakor kihagyhatsz egy vásárlást a költésminőségi diagramokból anélkül, hogy a kiadások összesítése változna',
+      'A kezdőképernyő mutatja, hogy a rugalmas költségvetések összesített tervének hány százalékát költötted el',
+      'Megbízhatósági ellenőrzés: az asztali frissítéskeresés tiszteletben tartja a beállításodat, a nem elérhető frissítések nem töltődnek le, az érvénytelen helyi útvonalak elutasításra kerülnek, és frissült egy sérülékeny fejlesztői függőség',
+    ],
+  },
+  {
     version: '1.2.0',
     releasedAt: '2026-10-29T00:00:00.000Z',
     intro:

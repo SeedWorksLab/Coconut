@@ -10,6 +10,7 @@ const OPTIONS: { rating: TransactionRating; icon: string; labelKey: TranslationK
   { rating: 'regret', icon: 'emoticon-sad', labelKey: 'rating.regret' },
   { rating: 'neutral', icon: 'emoticon-neutral', labelKey: 'rating.neutral' },
   { rating: 'good', icon: 'emoticon-happy', labelKey: 'rating.worthIt' },
+  { rating: 'ignore', icon: 'eye-off-outline', labelKey: 'rating.ignore' },
 ];
 
 interface RatingSelectorProps {
@@ -20,8 +21,8 @@ interface RatingSelectorProps {
 }
 
 /**
- * Compact three-stop rating: regret, neutral and good. An unrated transaction
- * rests on the neutral stop, which is how a purchase counts until judged.
+ * Compact rating: regret, neutral, good, or ignore. An unrated transaction
+ * rests on the neutral stop; ignore removes it from quality charts.
  */
 export function RatingSelector({
   value,
@@ -38,6 +39,9 @@ export function RatingSelector({
     }
     if (rating === 'good') {
       return theme.semantic.goodBudget;
+    }
+    if (rating === 'ignore') {
+      return theme.colors.secondary;
     }
     return theme.colors.onSurfaceVariant;
   };
@@ -113,6 +117,8 @@ export function RatingLegend() {
                 ? theme.semantic.overBudget
                 : option.rating === 'good'
                   ? theme.semantic.goodBudget
+                  : option.rating === 'ignore'
+                    ? theme.colors.secondary
                   : theme.colors.onSurfaceVariant
             }
           />
@@ -139,6 +145,7 @@ const styles = StyleSheet.create({
   },
   legend: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 14,
     marginTop: 8,
   },

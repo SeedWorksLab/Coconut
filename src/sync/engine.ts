@@ -8,7 +8,9 @@ import { pushChanges, pushSettings, type PushResult } from './push';
 import { pullChanges, pullSettings, type PullResult } from './pull';
 import { pushSharedChanges, pullSharedChanges, type SharedPushResult, type SharedPullResult } from './shared';
 import { getSupabaseSessionUser, getClient, SyncAuthError } from './supabase';
+import { reportSeedWorksUsage } from './usage-report';
 import { EPOCH, nowIso, pullSince } from './time';
+import { ensureSyncIdentity } from './identity';
 
 /** Watermark for the incremental shared-only sync, kept in `sync_meta`. */
 export const SHARED_LAST_SYNC_KEY = 'shared_last_sync_at';
@@ -72,6 +74,7 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
       return null;
     }
     try {
+      await ensureSyncIdentity(database, state, user.id);
       // Capture the watermark before touching the network. Anything another
       // device writes while this sync runs must be newer than it, otherwise a
       // "now" taken after the pull would skip it forever.
@@ -88,10 +91,11 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
       await reconcileSharedTransactions(user.id, database);
       // The username is an account identity used by shared spaces, so it travels
       // with the lightweight sync instead of waiting for a full personal sync.
-      await pushSettings(client, database, user.id, ['username']);
-      await pullSettings(database, client, EPOCH, ['username']);
+      await pushSettings(client, database, user.id, ['username', 'language']);
+      await pullSettings(database, client, EPOCH, ['username', 'language']);
       await setMeta(SHARED_LAST_SYNC_KEY, startedAt, database);
       await updateSyncState({ lastSyncStatus: 'success', lastSyncError: null }, database);
+      await reportSeedWorksUsage(database, client).catch(() => undefined);
       return { pushed, pulled };
     } catch (error) {
       if (error instanceof SyncAuthError) {
@@ -139,6 +143,7 @@ export async function syncPersonalChanges(
     }
     const startedAt = nowIso();
     try {
+      await ensureSyncIdentity(database, state, user.id);
       await updateSyncState({ lastSyncStatus: 'syncing' }, database);
       const client = await getClient();
       const pushed = await pushChanges(client, database, false);
@@ -156,6 +161,7 @@ export async function syncPersonalChanges(
         },
         database
       );
+      await reportSeedWorksUsage(database, client).catch(() => undefined);
       return { pushed, pulled };
     } catch (error) {
       if (error instanceof SyncAuthError) {
@@ -197,6 +203,7 @@ export async function syncNow(db?: SQLiteDatabase): Promise<SyncOutcome | null> 
       return null;
     }
     try {
+      await ensureSyncIdentity(database, state, user.id);
       // Captured before the first network call: the watermark must never move
       // past a row another device writes while this sync is in flight.
       const startedAt = nowIso();
@@ -228,13 +235,14 @@ export async function syncNow(db?: SQLiteDatabase): Promise<SyncOutcome | null> 
         },
         database
       );
+      await reportSeedWorksUsage(database, client).catch(() => undefined);
       return { pushed: pushResult, pulled: pullResult, sharedPushed, sharedPulled };
     } catch (error) {
       if (error instanceof SyncAuthError) {
         return null;
       }
       const message = error instanceof Error ? error.message : 'Unknown sync error';
-      await updateSyncState({ lastSyncStatus: 'error', lastSyncError: message });
+      await updateSyncState({ lastSyncStatus: 'error', lastSyncError: message }, database);
       throw new SyncError(message);
     }
   })();

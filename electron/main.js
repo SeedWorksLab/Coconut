@@ -1,10 +1,33 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
+const { safeJoin } = require('./static-server-path');
+const { availableVersion } = require('./update-result');
 
 const DIST_DIR = path.join(__dirname, '../dist');
 const LOCAL_SERVER_PORT = 47821;
+let mainWindow;
+
+function reportUpdateStatus(status) {
+  mainWindow?.webContents.send('coconut-updater:status', status);
+}
+
+autoUpdater.autoDownload = false;
+autoUpdater.on('checking-for-update', () => reportUpdateStatus('checking'));
+autoUpdater.on('update-available', () => reportUpdateStatus('available'));
+autoUpdater.on('update-not-available', () => reportUpdateStatus('current'));
+autoUpdater.on('download-progress', ({ percent }) => reportUpdateStatus(`downloading:${Math.round(percent)}`));
+autoUpdater.on('update-downloaded', () => reportUpdateStatus('downloaded'));
+autoUpdater.on('error', (error) => reportUpdateStatus(`error:${error.message}`));
+
+ipcMain.handle('coconut-updater:check', async () => {
+  const result = await autoUpdater.checkForUpdates();
+  return availableVersion(result);
+});
+ipcMain.handle('coconut-updater:download', async () => autoUpdater.downloadUpdate());
+ipcMain.handle('coconut-updater:install', () => autoUpdater.quitAndInstall());
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -25,15 +48,6 @@ const MIME_TYPES = {
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
 };
-
-function safeJoin(root, requestPath) {
-  const decoded = decodeURIComponent(requestPath.split('?')[0].split('#')[0]);
-  const resolved = path.normalize(path.join(root, decoded));
-  if (!resolved.startsWith(root)) {
-    return null;
-  }
-  return resolved;
-}
 
 function startServer() {
   return new Promise((resolve, reject) => {
@@ -91,9 +105,11 @@ async function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
     title: 'Coconut',
   });
+  mainWindow = win;
 
   win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     const responseHeaders = { ...(details.responseHeaders || {}) };

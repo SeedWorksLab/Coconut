@@ -23,10 +23,11 @@ interface TransactionRow {
   origin_type: string | null;
   origin_id: string | null;
   rating: string | null;
+  rating_excluded: number;
 }
 
 const LIST_COLUMNS =
-  'id, month_key, date, amount_cents, budget_id, merchant, note, created_at, attachment_name, attachment_mime, origin_type, origin_id, rating';
+  'id, month_key, date, amount_cents, budget_id, merchant, note, created_at, attachment_name, attachment_mime, origin_type, origin_id, rating, rating_excluded';
 
 function rowToTransaction(row: TransactionRow): Transaction {
   return {
@@ -42,7 +43,7 @@ function rowToTransaction(row: TransactionRow): Transaction {
     attachment: row.attachment ? new Uint8Array(row.attachment) : null,
     originType: row.origin_type ?? null,
     originId: row.origin_id ?? null,
-    rating: toRating(row.rating),
+    rating: row.rating_excluded === 1 ? 'ignore' : toRating(row.rating),
   };
 }
 
@@ -192,7 +193,10 @@ export async function setTransactionRating(
   db?: SQLiteDatabase
 ): Promise<void> {
   const database = db ?? (await getDatabase());
-  await database.runAsync('UPDATE transactions SET rating = ? WHERE id = ?', [rating, id]);
+  await database.runAsync(
+    'UPDATE transactions SET rating = ?, rating_excluded = ? WHERE id = ?',
+    [rating === 'ignore' ? null : rating, rating === 'ignore' ? 1 : 0, id]
+  );
 }
 
 export async function updateTransactionBudget(

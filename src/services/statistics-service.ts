@@ -106,19 +106,19 @@ export interface RatingShares {
 
 /**
  * The share of a month's transactions rated regret, neutral and good, as whole
- * percentages. An unrated transaction counts as neutral. Returns null for an
- * empty month.
+ * percentages. An unrated transaction counts as neutral; ignored transactions
+ * do not contribute to any share. Returns null when no rated transactions remain.
  */
 export function ratingSharesForMonth(
   transactions: readonly Transaction[]
 ): RatingShares | null {
-  if (transactions.length === 0) {
-    return null;
-  }
   let regret = 0;
   let neutral = 0;
   let good = 0;
   for (const transaction of transactions) {
+    if (transaction.rating === 'ignore') {
+      continue;
+    }
     if (transaction.rating === 'regret') {
       regret += 1;
     } else if (transaction.rating === 'good') {
@@ -127,7 +127,10 @@ export function ratingSharesForMonth(
       neutral += 1;
     }
   }
-  const total = transactions.length;
+  const total = regret + neutral + good;
+  if (total === 0) {
+    return null;
+  }
   return {
     regret: Math.round((regret / total) * 100),
     neutral: Math.round((neutral / total) * 100),

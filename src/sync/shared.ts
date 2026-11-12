@@ -478,8 +478,9 @@ async function applySharedRemoteTombstones(
   for (;;) {
     const { data, error } = await client
       .from('shared_sync_tombstones')
-      .select('table_name, row_key')
-      .gt('deleted_at', since)
+      .select('table_name, row_key, deleted_at')
+      // An older tombstone still blocks a newer stale re-inserted row.
+      .gt('deleted_at', SHARED_EPOCH)
       .order('deleted_at', { ascending: true })
       .order('row_key', { ascending: true })
       .range(offset, offset + SHARED_PULL_PAGE_SIZE - 1);
@@ -499,7 +500,9 @@ async function applySharedRemoteTombstones(
         tomb.table_name,
         tomb.row_key,
       ]);
-      applied += 1;
+      if ((tomb.deleted_at as string) > since) {
+        applied += 1;
+      }
     }
     if (page.length < SHARED_PULL_PAGE_SIZE) {
       break;

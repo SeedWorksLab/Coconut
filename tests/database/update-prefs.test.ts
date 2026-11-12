@@ -43,9 +43,9 @@ function freshDb(): DatabaseSync {
 }
 
 describe('update preferences', () => {
-  it('defaults the startup update check to off', async () => {
+  it('defaults the startup update check to on', async () => {
     const raw = freshDb();
-    await expect(getCheckForUpdatesOnStart(makeDbApi(raw) as never)).resolves.toBe(false);
+    await expect(getCheckForUpdatesOnStart(makeDbApi(raw) as never)).resolves.toBe(true);
   });
 
   it('persists and reads back the startup update check', async () => {

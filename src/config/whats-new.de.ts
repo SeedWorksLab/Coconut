@@ -2,6 +2,20 @@ import type { WhatsNewEntry } from './whats-new';
 
 export const whatsNewDe: WhatsNewEntry[] = [
   {
+    version: '1.2.3',
+    releasedAt: '2026-11-12T00:00:00.000Z',
+    intro: 'Mehr Kontrolle über deine Daten, den ersten Start und die Updates von Coconut.',
+    features: [
+      'Ziehe die Transaktionsliste nach unten, um bei aktivierter Synchronisierung die neuesten persönlichen Transaktionen aus der Cloud abzurufen',
+      'Beim ersten Start kannst du dich mit einem bestehenden Konto anmelden und deine Daten wiederherstellen, bevor du die Einführung durchläufst',
+      'Deine Sprachauswahl wird jetzt zwischen Geräten synchronisiert, die mit deinem Cloud-Konto verbunden sind',
+      'Android kann die APK einer Veröffentlichung herunterladen und dem Installationsprogramm übergeben; die Linux-Desktop-App kann AppImage-Updates herunterladen und installieren',
+      'Ignoriere einen Einkauf beim Monatsabschluss, um ihn aus Diagrammen zur Ausgabenqualität auszuschließen, ohne die Ausgabensummen zu ändern',
+      'Die Übersicht zeigt, wie viel Prozent des gesamten Plans für flexible Kategorien ausgegeben wurden',
+      'Zuverlässigkeitsprüfung: Desktop-Updateprüfungen beachten deine Einstellung, nicht verfügbare Updates werden nicht heruntergeladen, ungültige lokale Pfade werden abgewiesen und eine anfällige Entwicklungsabhängigkeit wurde aktualisiert',
+    ],
+  },
+  {
     version: '1.2.0',
     releasedAt: '2026-10-29T00:00:00.000Z',
     intro:

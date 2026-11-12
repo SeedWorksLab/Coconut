@@ -9,6 +9,7 @@ import {
 } from '../database/updatePrefs';
 import { useI18n } from '../i18n';
 import { UpdateAvailableDialog } from './update-available-dialog';
+import { installUpdate } from '../services/install-update';
 
 export function UpdateNotifier() {
   const { t } = useI18n();
@@ -47,7 +48,11 @@ export function UpdateNotifier() {
       return;
     }
     try {
-      await Linking.openURL(url);
+      if (update) {
+        await installUpdate(update);
+      } else {
+        await Linking.openURL(url);
+      }
     } catch {
       Alert.alert(t('update.linkError'));
     }

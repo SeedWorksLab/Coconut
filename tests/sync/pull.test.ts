@@ -182,6 +182,29 @@ const SINCE = '2020-01-01T00:00:00.000Z';
 const UPDATED = '2026-09-18T10:00:00.000Z';
 
 describe('pullChanges', () => {
+  it('does not re-import a stale remote copy after its tombstone, even beyond the incremental window', async () => {
+    const raw = freshDb();
+    raw.exec("INSERT INTO months (month_key, allowance_cents, starting_reserve_cents) VALUES ('2026-09', 50000, 0)");
+    raw.exec("INSERT INTO transactions (uuid, updated_at, month_key, date, amount_cents, merchant) VALUES ('deleted-tx', '2026-09-01T00:00:00.000Z', '2026-09', '2026-09-20', 1500, 'Local stale copy')");
+    const client = new FakeClient();
+    client.seed('sync_tombstones', {
+      table_name: 'transactions', row_key: 'deleted-tx',
+      deleted_at: '2026-09-01T00:00:00.000Z',
+    });
+    client.seed('transactions', {
+      uuid: 'deleted-tx', month_key: '2026-09', date: '2026-09-20',
+      amount_cents: 1500, merchant: 'Stale',
+      updated_at: '2026-09-20T00:00:00.000Z',
+    });
+
+    const result = await pullChanges(
+      client as never, makeDbApi(raw) as never, '2026-09-10T00:00:00.000Z'
+    );
+
+    expect(result.tombstones).toBe(0);
+    expect(raw.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toMatchObject({ count: 0 });
+  });
+
   it('pulls the username setting', async () => {
     const raw = freshDb();
     const client = new FakeClient();
@@ -197,6 +220,23 @@ describe('pullChanges', () => {
       .prepare("SELECT value FROM settings WHERE key = 'username'")
       .get() as { value: string };
     expect(row.value).toBe('alice');
+  });
+
+  it('pulls the selected language from the authenticated user', async () => {
+    const raw = freshDb();
+    const client = new FakeClient();
+    client.seed('settings', {
+      key: 'language',
+      value: 'hu',
+      updated_at: UPDATED,
+    });
+
+    await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
+
+    const row = raw.prepare("SELECT value FROM settings WHERE key = 'language'").get() as {
+      value: string;
+    };
+    expect(row.value).toBe('hu');
   });
 
   it('keeps a row with an unresolved nullable FK, storing NULL instead of dropping it', async () => {

@@ -6,6 +6,7 @@ import { whatsNew, whatsNewByLanguage } from '../../src/config/whats-new';
 
 describe('the what\u2019s new list', () => {
   it('lists the newest version first, so it is the one badged as latest', () => {
+    expect(whatsNew[0].version).toBe('1.2.3');
     const versions = whatsNew.map((entry) => entry.version);
     const sorted = [...versions].sort((a, b) => compareVersions(b, a));
     expect(versions).toEqual(sorted);
@@ -25,8 +26,10 @@ describe('the what\u2019s new list', () => {
   });
 
   it('keeps every language in sync with the English release list', () => {
+    expect(whatsNew[0].features).toHaveLength(7);
     for (const language of ['hu', 'de'] as const) {
       const localized = whatsNewByLanguage[language];
+      expect(localized[0].features).toHaveLength(whatsNew[0].features.length);
       expect(localized.map((entry) => entry.version)).toEqual(
         whatsNew.map((entry) => entry.version)
       );

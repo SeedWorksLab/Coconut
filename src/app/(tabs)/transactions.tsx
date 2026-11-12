@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { SectionList, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshControl, SectionList, StyleSheet, View } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, FAB, List, Searchbar, Text } from 'react-native-paper';
@@ -14,6 +14,7 @@ import { ScreenFade } from '../../components/screen-fade';
 import { FadeIn } from '../../components/fade-in';
 import { MonthSwitcher } from '../../components/month-switcher';
 import { SharedExpenseTraceLabel } from '../../components/shared-expense-trace';
+import { ScreenToast } from '../../components/screen-toast';
 import type { MonthKey, Transaction } from '../../models';
 
 interface TransactionSection {
@@ -22,11 +23,13 @@ interface TransactionSection {
 }
 
 export default function TransactionsScreen() {
-  const { ready, settings, currentMonth, currentDashboard, dashboardFor } = useAppData();
+  const { ready, settings, currentMonth, currentDashboard, dashboardFor, syncPersonalAndRefresh } = useAppData();
   const router = useRouter();
   const theme = useAppTheme();
   const { t, language } = useI18n();
   const [query, setQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const todayMonthKey = currentMonthKey();
   // The app works on the active month, which advances on closing rather than
   // with the calendar. The list follows it until the user picks another month.
@@ -69,6 +72,17 @@ export default function TransactionsScreen() {
       setLoadingMonth(next !== activeMonthKey);
     }
   };
+
+  const handlePullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await syncPersonalAndRefresh();
+    } catch {
+      setToast(t('sync.syncFailed'));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [syncPersonalAndRefresh, t]);
 
   const dashboard = viewingActiveMonth ? currentDashboard : monthDashboard;
 
@@ -141,6 +155,15 @@ export default function TransactionsScreen() {
             keyExtractor={(item) => String(item.id)}
             stickySectionHeadersEnabled={false}
             contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => void handlePullRefresh()}
+                colors={[theme.colors.primary]}
+                tintColor={theme.colors.primary}
+                progressBackgroundColor={theme.colors.surface}
+              />
+            }
             ListEmptyComponent={
               <EmptyState
                 icon={<Text variant="displaySmall">🛒</Text>}
@@ -216,6 +239,7 @@ export default function TransactionsScreen() {
         ) : null}
         </View>
       )}
+      <ScreenToast visible={toast !== null} message={toast} onDismiss={() => setToast(null)} />
     </ScreenFade>
   );
 }

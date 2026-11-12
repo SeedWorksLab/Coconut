@@ -90,7 +90,22 @@ describe('releaseFromJson', () => {
     expect(release).toEqual({
       version: 'v0.4.0',
       url: 'https://github.com/henrikkerezsi/Coconut/releases/tag/v0.4.0',
+      assets: [],
     });
+  });
+
+  it('extracts downloadable release assets', () => {
+    const release = releaseFromJson({
+      tag_name: 'v0.4.0',
+      html_url: 'https://github.com/henrikkerezsi/Coconut/releases/tag/v0.4.0',
+      assets: [
+        { name: 'coconut.apk', browser_download_url: 'https://example.com/coconut.apk' },
+        { name: 'invalid.zip' },
+      ],
+    });
+    expect(release?.assets).toEqual([
+      { name: 'coconut.apk', url: 'https://example.com/coconut.apk' },
+    ]);
   });
 
   it('returns null for invalid payloads', () => {
@@ -105,7 +120,7 @@ describe('fetchLatestRelease', () => {
   it('returns the release for a successful response', async () => {
     const fetchImpl = okFetch({ tag_name: 'v0.4.0', html_url: 'https://example.com/v0.4.0' });
     const release = await fetchLatestRelease('https://api.example.com/releases/latest', fetchImpl);
-    expect(release).toEqual({ version: 'v0.4.0', url: 'https://example.com/v0.4.0' });
+    expect(release).toEqual({ version: 'v0.4.0', url: 'https://example.com/v0.4.0', assets: [] });
   });
 
   it('returns null when the request fails', async () => {

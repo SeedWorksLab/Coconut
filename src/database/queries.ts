@@ -262,8 +262,8 @@ export interface RatingPerformancePoint {
 
 /**
  * Per closed month, the share of its transactions rated regret, neutral and
- * good. Unrated purchases count as neutral. Months without transactions are
- * omitted.
+ * good. Unrated purchases count as neutral; months with only ignored purchases
+ * are omitted.
  */
 export async function getRatingPerformance(
   db?: SQLiteDatabase

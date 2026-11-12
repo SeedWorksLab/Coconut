@@ -243,6 +243,21 @@ async function pushRow(
 
   const sharedMirror = isSharedMirror(adapter, localRow);
   const remote = await remoteCopyOf(client, adapter, entry.row_key, userId, localRow);
+  if (!remote) {
+    const { data: tombstone, error } = await client
+      .from('sync_tombstones')
+      .select('row_key')
+      .eq('table_name', adapter.localTable)
+      .eq('row_key', entry.row_key)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Tombstone lookup failed for ${adapter.localTable}: ${error.message}`);
+    }
+    if (tombstone) {
+      await pruneOutbox(db, entry.table_name, entry.row_key);
+      return;
+    }
+  }
   const remoteUpdatedAt = remote?.updated_at ?? null;
   const localUpdatedAt = (localRow.updated_at as string | null) ?? null;
   // Only a strictly newer local write may replace an existing remote row. Ties

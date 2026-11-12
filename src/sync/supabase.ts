@@ -41,6 +41,12 @@ export async function getClient(): Promise<CoconutClient> {
         },
       });
     })();
+    const pending = clientPromise;
+    pending.catch(() => {
+      if (clientPromise === pending) {
+        clientPromise = null;
+      }
+    });
   }
   return clientPromise;
 }
@@ -80,7 +86,10 @@ export async function signInToSupabase(
 
 export async function signOutOfSupabase(): Promise<void> {
   const client = await getClient();
-  await client.auth.signOut();
+  const { error } = await client.auth.signOut();
+  if (error) {
+    throw new SyncAuthError(error.message);
+  }
 }
 
 export async function getSupabaseSessionUser(): Promise<User | null> {

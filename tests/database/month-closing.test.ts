@@ -291,12 +291,13 @@ describe('closing a month', () => {
          VALUES (?, ?, ?, NULL, 'Anything', NULL)`
       )
       .run(MONTH_KEY, '2026-09-02', 1000);
-    for (const rating of TRANSACTION_RATINGS) {
+    for (const rating of TRANSACTION_RATINGS.filter((value) => value !== 'ignore')) {
       expect(() =>
         raw.prepare('UPDATE transactions SET rating = ?').run(rating)
       ).not.toThrow();
     }
     expect(() => raw.prepare('UPDATE transactions SET rating = ?').run('excellent')).toThrow();
+    expect(() => raw.prepare('UPDATE transactions SET rating = ?').run('ignore')).toThrow();
     expect(() => raw.prepare('UPDATE transactions SET rating = ?').run(null)).not.toThrow();
   });
 });

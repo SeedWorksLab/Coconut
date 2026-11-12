@@ -198,6 +198,7 @@ interface AppData {
   replanMonth: (input: MonthPlanUpdate) => Promise<void>;
   refresh: () => Promise<void>;
   syncSharedAndRefresh: () => Promise<void>;
+  syncPersonalAndRefresh: () => Promise<void>;
 }
 
 const DataContext = createContext<AppData | null>(null);
@@ -422,6 +423,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // mirrored amounts updated on another device show up immediately.
   const syncSharedAndRefresh = useCallback(async () => {
     const outcome = await syncSharedChanges();
+    if (outcome) {
+      await loadLocal();
+    }
+  }, [loadLocal]);
+
+  // Pull-to-refresh entry point for the personal tabs: push the local outbox
+  // and pull any personal changes made on another device, then re-read the
+  // dataset so new rows appear immediately. The full `syncNow` stays in
+  // Settings as the repair path.
+  const syncPersonalAndRefresh = useCallback(async () => {
+    const outcome = await syncPersonalChanges();
     if (outcome) {
       await loadLocal();
     }
@@ -674,8 +686,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       },
       refresh,
       syncSharedAndRefresh,
+      syncPersonalAndRefresh,
     };
-  }, [ready, settings, syncState, recentTransactions, currentMonth, currentDashboard, pendingMonthKey, allFixedExpenses, budgets, allSubscriptions, allMonths, reserveHistory, activeMonthKey, refresh, syncSharedAndRefresh]);
+  }, [ready, settings, syncState, recentTransactions, currentMonth, currentDashboard, pendingMonthKey, allFixedExpenses, budgets, allSubscriptions, allMonths, reserveHistory, activeMonthKey, refresh, syncSharedAndRefresh, syncPersonalAndRefresh]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

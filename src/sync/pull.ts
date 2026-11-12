@@ -311,15 +311,18 @@ async function applyRemoteTombstones(
   db: SQLiteDatabase,
   client: CoconutClient,
   since: string
-): Promise<number> {
+): Promise<{ applied: number; tombstonedKeys: Set<string> }> {
   const adapterByTable = new Map(COMPLETE_ADAPTERS.map((a) => [a.localTable, a]));
   let applied = 0;
   let offset = 0;
+  const tombstonedKeys = new Set<string>();
   for (;;) {
     const { data, error } = await client
       .from('sync_tombstones')
-      .select('table_name, row_key')
-      .gt('deleted_at', since)
+      .select('table_name, row_key, deleted_at')
+      // An older tombstone must also remove a stale local copy and block any
+      // subsequently reinserted stale remote row.
+      .gt('deleted_at', '1970-01-01T00:00:00.000Z')
       .order('deleted_at', { ascending: true })
       .order('row_key', { ascending: true })
       .range(offset, offset + PULL_PAGE_SIZE - 1);
@@ -332,6 +335,7 @@ async function applyRemoteTombstones(
       if (!adapter) {
         continue;
       }
+      tombstonedKeys.add(`${tomb.table_name}:${tomb.row_key}`);
       if (adapter.identityColumn === 'month_key') {
         await db.runAsync('DELETE FROM months WHERE month_key = ?', [tomb.row_key]);
       } else {
@@ -343,14 +347,16 @@ async function applyRemoteTombstones(
         tomb.table_name,
         tomb.row_key,
       ]);
-      applied += 1;
+      if ((tomb.deleted_at as string) > since) {
+        applied += 1;
+      }
     }
     if (page.length < PULL_PAGE_SIZE) {
       break;
     }
     offset += PULL_PAGE_SIZE;
   }
-  return applied;
+  return { applied, tombstonedKeys };
 }
 
 export async function pullSettings(
@@ -477,11 +483,18 @@ export async function pullChanges(
   let settingsPulled = 0;
 
   await withPullGuard(db, async () => {
-    tombstones = await applyRemoteTombstones(db, client, since);
+    const tombstoneResult = await applyRemoteTombstones(db, client, since);
+    tombstones = tombstoneResult.applied;
 
     for (const adapter of COMPLETE_ADAPTERS) {
       const remoteRows = await fetchRemoteRows(client, adapter.remoteTable, since);
       for (const remoteRow of remoteRows) {
+        const rowKey = adapter.identityColumn === 'month_key'
+          ? remoteRow.month_key
+          : remoteRow.uuid;
+        if (tombstoneResult.tombstonedKeys.has(`${adapter.localTable}:${rowKey}`)) {
+          continue;
+        }
         await applyRemoteRow(db, adapter, remoteRow, maps, client);
         pulled += 1;
       }

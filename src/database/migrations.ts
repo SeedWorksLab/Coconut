@@ -142,9 +142,12 @@ export function syncTriggersSql(): string {
   return buildSyncTriggersSql(baselineSyncTableSpecs());
 }
 
-function buildSyncTriggersSql(tables: [string, SyncTableSpec][]): string {
+function buildSyncTriggersSql(tables: [string, SyncTableSpec][], preserveIdentity = false): string {
   const parts: string[] = [];
   const timestampSql = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
+  const uuidSql = preserveIdentity
+    ? 'COALESCE(uuid, lower(hex(randomblob(16))))'
+    : 'lower(hex(randomblob(16)))';
   const pullGuard = `(SELECT COALESCE((SELECT value FROM sync_meta WHERE key = 'pull_in_progress'), '0') = '0')`;
   for (const [table, { pk, identity }] of tables) {
     parts.push(`
@@ -152,7 +155,7 @@ CREATE TRIGGER IF NOT EXISTS trg_${table}_ai AFTER INSERT ON ${table}
 WHEN ${pullGuard}
 BEGIN
   UPDATE ${table}
-     SET uuid = lower(hex(randomblob(16))),
+     SET uuid = ${uuidSql},
          updated_at = ${timestampSql}
    WHERE ${pk} = NEW.${pk} AND (uuid IS NULL OR updated_at IS NULL);
   INSERT INTO sync_outbox (table_name, row_key)
@@ -226,17 +229,24 @@ export const SHARED_TABLE_SPECS: Record<
 
 export const SHARED_TABLES: string[] = Object.keys(SHARED_TABLE_SPECS);
 
-function sharedTriggersSql(): string {
+function sharedTriggersSql(
+  preserveIdentity = false,
+  tables: readonly string[] = Object.keys(SHARED_TABLE_SPECS)
+): string {
   const parts: string[] = [];
   const timestampSql = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
+  const uuidSql = preserveIdentity
+    ? 'COALESCE(uuid, lower(hex(randomblob(16))))'
+    : 'lower(hex(randomblob(16)))';
   const pullGuard = `(SELECT COALESCE((SELECT value FROM sync_meta WHERE key = 'pull_in_progress'), '0') = '0')`;
-  for (const [table, { pk, identity, spaceExpr }] of Object.entries(SHARED_TABLE_SPECS)) {
+  for (const table of tables) {
+    const { pk, identity, spaceExpr } = SHARED_TABLE_SPECS[table];
     parts.push(`
 CREATE TRIGGER IF NOT EXISTS trg_${table}_ai AFTER INSERT ON ${table}
 WHEN ${pullGuard}
 BEGIN
   UPDATE ${table}
-     SET uuid = lower(hex(randomblob(16))),
+     SET uuid = ${uuidSql},
          updated_at = ${timestampSql}
    WHERE ${pk} = NEW.${pk} AND (uuid IS NULL OR updated_at IS NULL);
   INSERT INTO sync_outbox (table_name, row_key)
@@ -265,6 +275,29 @@ END;
 `);
   }
   return parts.join('\n');
+}
+
+// Snapshot the tables present at migration 20. Later migrations must install
+// their own triggers rather than widening this SQL for older databases.
+const MIGRATION_20_PERSONAL_TABLES = [
+  'months', 'fixed_expenses', 'month_fixed_expenses', 'budgets',
+  'month_budgets', 'transactions', 'income', 'reserve_transfers',
+  'yearly_subscriptions', 'month_budget_plan_events',
+] as const;
+const MIGRATION_20_SHARED_TABLES = [
+  'shared_spaces', 'shared_space_members', 'shared_periods',
+  'shared_expenses', 'shared_expense_splits', 'shared_period_reports',
+] as const;
+
+function identityPreservingTriggersSql(): string {
+  const personal = MIGRATION_20_PERSONAL_TABLES.map((table) =>
+    [table, SYNC_TABLE_SPECS[table].spec] as [string, SyncTableSpec]
+  );
+  const allTables = [...MIGRATION_20_PERSONAL_TABLES, ...MIGRATION_20_SHARED_TABLES];
+  const drops = allTables.flatMap((table) =>
+    ['ai', 'au', 'ad'].map((suffix) => `DROP TRIGGER IF EXISTS trg_${table}_${suffix};`)
+  );
+  return `${drops.join('\n')}\n${buildSyncTriggersSql(personal, true)}\n${sharedTriggersSql(true, MIGRATION_20_SHARED_TABLES)}`;
 }
 
 const SHARED_SCHEMA_SQL = `
@@ -720,5 +753,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_shared_origin
   ON transactions (origin_id)
   WHERE origin_id IS NOT NULL;
 `,
+  },
+  {
+    id: 19,
+    description: 'Exclude selected transactions from spending quality',
+    sql: `
+ALTER TABLE transactions ADD COLUMN rating_excluded INTEGER NOT NULL DEFAULT 0
+  CHECK (rating_excluded IN (0, 1));
+`,
+  },
+  {
+    id: 20,
+    description: 'Preserve supplied sync identities when filling missing timestamps',
+    sql: identityPreservingTriggersSql(),
   },
 ];

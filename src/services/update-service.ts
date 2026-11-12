@@ -9,6 +9,12 @@ export interface VersionParts {
 export interface ReleaseInfo {
   version: string;
   url: string;
+  assets?: ReleaseAsset[];
+}
+
+export interface ReleaseAsset {
+  name: string;
+  url: string;
 }
 
 export type FetchLike = (url: string) => Promise<{ ok: boolean; json: () => Promise<unknown> }>;
@@ -57,11 +63,20 @@ export function releaseFromJson(payload: unknown): ReleaseInfo | null {
   if (typeof payload !== 'object' || payload === null) {
     return null;
   }
-  const { tag_name: tagName, html_url: htmlUrl } = payload as Record<string, unknown>;
+  const { tag_name: tagName, html_url: htmlUrl, assets } = payload as Record<string, unknown>;
   if (typeof tagName !== 'string' || typeof htmlUrl !== 'string' || parseVersion(tagName) === null) {
     return null;
   }
-  return { version: tagName, url: htmlUrl };
+  const releaseAssets = Array.isArray(assets)
+    ? assets.flatMap((asset): ReleaseAsset[] => {
+        if (typeof asset !== 'object' || asset === null) return [];
+        const candidate = asset as Record<string, unknown>;
+        return typeof candidate.name === 'string' && typeof candidate.browser_download_url === 'string'
+          ? [{ name: candidate.name, url: candidate.browser_download_url }]
+          : [];
+      })
+    : [];
+  return { version: tagName, url: htmlUrl, assets: releaseAssets };
 }
 
 export async function fetchLatestRelease(

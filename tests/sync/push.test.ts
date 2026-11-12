@@ -133,6 +133,7 @@ const REMOTE_COLUMNS: Record<string, string[]> = {
     'origin_type',
     'origin_id',
     'rating',
+    'rating_excluded',
     'updated_at',
   ],
   settings: ['key', 'value', 'user_id', 'updated_at'],
@@ -351,6 +352,24 @@ describe('pushChanges full-sync seeding and healing', () => {
     expect(logged).toBeDefined();
   });
 
+  it('does not resurrect a row deleted by another device during a full sync', async () => {
+    const db = freshDb();
+    insertMonth(db, '2026-09');
+    insertTransaction(db, 1200, null);
+    const uuid = (db.prepare('SELECT uuid FROM transactions').get() as { uuid: string }).uuid;
+    const client = new FakeClient();
+    client.tables.get('sync_tombstones')!.set(uuid, {
+      user_id: 'user-1', table_name: 'transactions', row_key: uuid,
+      deleted_at: '2026-09-20T00:00:00.000Z',
+    });
+
+    await pushAll(db, client);
+
+    expect(client.tables.get('transactions')!.size).toBe(0);
+    expect(client.upsertLog.some((entry) => entry.table === 'transactions')).toBe(false);
+    expect((db.prepare('SELECT COUNT(*) AS count FROM sync_outbox WHERE row_key = ?').get(uuid) as { count: number }).count).toBe(0);
+  });
+
   it('updates the existing remote mirror instead of creating a second copy', async () => {
     const db = freshDb();
     insertMonth(db, '2026-09');
@@ -563,6 +582,20 @@ describe('pushChanges full-sync seeding and healing', () => {
     expect(client.tables.get('settings')?.get('username')).toMatchObject({
       key: 'username',
       value: 'alice',
+      user_id: 'user-1',
+    });
+  });
+
+  it('pushes the selected language for the authenticated user', async () => {
+    const db = freshDb();
+    await updateSettings({ language: 'de' }, makeDbApi(db) as never);
+
+    const client = new FakeClient();
+    await pushAll(db, client);
+
+    expect(client.tables.get('settings')?.get('language')).toMatchObject({
+      key: 'language',
+      value: 'de',
       user_id: 'user-1',
     });
   });

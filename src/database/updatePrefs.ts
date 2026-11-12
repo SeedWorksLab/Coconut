@@ -30,7 +30,7 @@ export async function getCheckForUpdatesOnStart(db?: SQLiteDatabase): Promise<bo
     'SELECT value FROM settings WHERE key = ?',
     [CHECK_FOR_UPDATES_ON_START_KEY]
   );
-  return row?.value === '1';
+  return row ? row.value === '1' : true;
 }
 
 export async function setCheckForUpdatesOnStart(

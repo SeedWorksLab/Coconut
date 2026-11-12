@@ -6,7 +6,7 @@ import { CoconutThemeProvider, useAppTheme } from '../theme';
 import { buildNavigationTheme } from '../theme/navigation';
 import { DataProvider, useAppData } from '../data/DataProvider';
 import { UpdateNotifier } from '../components/update-notifier';
-import { AutoTutorial } from '../components/auto-tutorial';
+import { AutoOnboarding } from '../components/auto-onboarding';
 import { MonthPlanningOverlay } from '../components/month-planning-overlay';
 import { I18nProvider, useI18n } from '../i18n';
 
@@ -103,12 +103,16 @@ function ThemedContent() {
             options={{ title: t('screen.backupRestore') }}
           />
           <Stack.Screen
+            name="greeter"
+            options={{ title: t('screen.greeter'), presentation: 'fullScreenModal', headerShown: false }}
+          />
+          <Stack.Screen
             name="tutorial"
             options={{ title: t('screen.coconutTour'), presentation: 'fullScreenModal', headerShown: false }}
           />
         </Stack>
         <UpdateNotifier />
-        <AutoTutorial />
+        <AutoOnboarding />
         <MonthPlanningOverlay />
       </PaperProvider>
     </ThemeProvider>

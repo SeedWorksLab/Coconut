@@ -127,10 +127,10 @@ Closing a month is a review of that month, presented on one screen:
 - How much was spent in total, and how much of that went to fixed expenses and to
   subscriptions.
 - How much each budget received.
-- Every transaction of the month, each with a three-stop judgement of how much value the
-  purchase turned out to be: regret, neutral, or good. A purchase that is not judged is
-  neutral, and this is the whole purpose of the review, so the user can look back and see
-  how usefully they spent their money. The judgements are kept for later statistics.
+- Every transaction of the month, each with a judgement of how much value the purchase
+  turned out to be: regret, neutral, or good, plus an Ignore option. A purchase that is
+  not judged is neutral; Ignore excludes it from spending-quality charts only, not from
+  spending or accounting. The judgements are kept for later statistics.
 - A purchase that is derived from a shared expense is judged like any other. The
   judgement is kept on the user's own copy of the purchase and survives a later change
   to the shared expense.

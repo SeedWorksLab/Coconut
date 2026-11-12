@@ -1,6 +1,12 @@
 # Coconut
 
 <p align="center">
+  <a href="https://seedworkslab.github.io/apps/coconut/">
+    <img src="https://seedworkslab.github.io/assets/readme/download-coconut.svg" alt="Download Coconut" width="340">
+  </a>
+</p>
+
+<p align="center">
   <img src="assets/coconut-banner.webp" alt="Coconut — a private, offline-first budget tracking app" width="640">
 </p>
 

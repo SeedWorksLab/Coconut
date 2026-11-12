@@ -17,6 +17,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.coconut.app",
+      "permissions": ["REQUEST_INSTALL_PACKAGES"],
       "minSdkVersion": 29,
       "predictiveBackGestureEnabled": false,
       "versionCode": 19
