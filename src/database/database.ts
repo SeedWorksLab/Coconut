@@ -1,5 +1,5 @@
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
-import { DATABASE_NAME } from '../utils/date';
+import { getDatabaseName } from './database-name';
 import { MIGRATIONS, subscriptionRepairSql } from './migrations';
 import { recoverPullGuard } from './pull-guard-recovery';
 
@@ -7,7 +7,7 @@ let dbPromise: Promise<SQLiteDatabase> | null = null;
 
 export function getDatabase(): Promise<SQLiteDatabase> {
   if (!dbPromise) {
-    dbPromise = openDatabaseAsync(DATABASE_NAME).then(async (db) => {
+    dbPromise = openDatabaseAsync(getDatabaseName()).then(async (db) => {
       try {
         await db.execAsync('PRAGMA journal_mode = WAL;');
         await db.execAsync('PRAGMA recursive_triggers = OFF;');

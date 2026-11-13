@@ -51,6 +51,10 @@ cwd = "android"
 name = "Build Linux desktop app"
 run = ["npm", "run", "electron:build"]
 
+[[build.steps]]
+name = "Build hosted Coconut web app"
+run = ["npm", "run", "export:hosted-web"]
+
 [[artifacts]]
 path = "android/app/build/outputs/apk/release/app-release.apk"
 name = "coconut-{version}.apk"
@@ -83,3 +87,9 @@ name = "coconut-{version}.zip"
 platform = "Linux"
 purpose = "Zipped desktop build."
 optional = true
+
+[[artifacts]]
+path = "build/coconut-web.zip"
+name = "coconut-web-{version}.zip"
+platform = "Web"
+purpose = "Static hosted web app for SeedWorks GitHub Pages; deploy through website review."

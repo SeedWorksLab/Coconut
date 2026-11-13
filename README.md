@@ -88,6 +88,24 @@ Prerequisites:
 | `npm run typecheck`| TypeScript check (`tsc --noEmit`)             |
 | `npm run lint`     | Lint the code (`expo lint`)                   |
 
+## Hosted web build
+
+`npm run export:hosted-web` builds an account-required version for
+`https://seedworkslab.github.io/apps/coconut/web/` and creates
+`build/coconut-web.zip`. `npm run stage:hosted-web` copies the export to the
+separate website repository **only if it has no pending changes**; review and
+deploy that repository separately. `seed release coconut` builds the web
+archive alongside the existing Android and Electron artifacts, without
+changing their local-only/account-optional behavior.
+
+The hosted version shares the Seed account portal's browser session, but keeps
+an independent SQLite cache per signed-in user. First use requires an online
+pull; later visits can use the cached dataset offline while their session remains valid. Signing out locks the
+interface, but GitHub Pages cannot erase or encrypt browser storage: do not
+use an untrusted or shared browser for sensitive financial data. Browser
+storage can be cleared; sync status should be checked before relying on
+another device to hold the latest edits.
+
 ## Project structure
 
 ```

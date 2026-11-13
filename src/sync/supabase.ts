@@ -4,8 +4,8 @@ import { createClient, type SupabaseClient, type User } from '@supabase/supabase
 
 import { resolveCloudConfig } from '../config/cloud';
 import { getDatabase } from '../database/database';
-import { syncMetaAuthStorage } from '../database/syncMeta';
 import { getSyncState } from '../database/syncState';
+import { coconutAuthStorage, coconutAuthStorageKey } from './auth-storage';
 
 export type CoconutClient = SupabaseClient<any, any, 'coconut'>;
 
@@ -29,7 +29,8 @@ export async function getClient(): Promise<CoconutClient> {
           schema: 'coconut',
         },
         auth: {
-          storage: syncMetaAuthStorage,
+          storage: coconutAuthStorage,
+          storageKey: coconutAuthStorageKey,
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: false,

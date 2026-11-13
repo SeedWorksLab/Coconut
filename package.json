@@ -8,6 +8,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "export:web": "expo export --platform web",
+    "export:hosted-web": "node scripts/build-hosted-web.js",
+    "stage:hosted-web": "node scripts/stage-hosted-web.js",
     "electron:build": "node scripts/build-electron.js",
     "reset-password": "node scripts/reset-password.mjs",
     "test": "jest",

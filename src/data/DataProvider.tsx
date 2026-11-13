@@ -1,12 +1,14 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import dayjs, { type Dayjs } from 'dayjs';
 import { DEFAULT_LANGUAGE, type Language } from '../i18n/types';
+import { HOSTED_WEB } from '../config/hosted-web';
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import type {
@@ -340,6 +342,7 @@ async function buildDashboard(monthKey: MonthKey): Promise<MonthDashboard | null
 }
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
+  const initialHostedLoad = useRef(true);
   const [ready, setReady] = useState(false);
   const [settings, setSettings] = useState<Settings>({
     monthlyAllowanceCents: 0,
@@ -399,8 +402,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // available in Settings for emergencies). Once either sync lands, read the
     // personal dataset again so new rows and re-derived mirrors appear.
     await loadLocal();
+    if (HOSTED_WEB && initialHostedLoad.current) {
+      initialHostedLoad.current = false;
+      return;
+    }
     const synced = (async () => {
       let changed = false;
+      if (HOSTED_WEB) {
+        try {
+          changed = Boolean(await syncPersonalChanges()) || changed;
+        } catch {
+          // Preserve pending edits and attempt shared sync independently.
+        }
+        try {
+          changed = Boolean(await syncSharedChanges()) || changed;
+        } catch {
+          // The sync state records the failure.
+        }
+        return changed;
+      }
       try {
         changed = Boolean(await syncSharedChanges()) || changed;
       } catch {

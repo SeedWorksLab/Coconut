@@ -9,6 +9,9 @@ import { UpdateNotifier } from '../components/update-notifier';
 import { AutoOnboarding } from '../components/auto-onboarding';
 import { MonthPlanningOverlay } from '../components/month-planning-overlay';
 import { I18nProvider, useI18n } from '../i18n';
+import { HostedWebGate } from '../components/hosted-web-gate';
+import { HostedWebSync } from '../components/hosted-web-sync';
+import { HOSTED_WEB } from '../config/hosted-web';
 
 function ThemedContent() {
   const theme = useAppTheme();
@@ -111,9 +114,10 @@ function ThemedContent() {
             options={{ title: t('screen.coconutTour'), presentation: 'fullScreenModal', headerShown: false }}
           />
         </Stack>
-        <UpdateNotifier />
+        {!HOSTED_WEB ? <UpdateNotifier /> : null}
         <AutoOnboarding />
         <MonthPlanningOverlay />
+        <HostedWebSync />
       </PaperProvider>
     </ThemeProvider>
   );
@@ -133,8 +137,10 @@ function ThemedApp() {
 
 export default function RootLayout() {
   return (
-    <DataProvider>
-      <ThemedApp />
-    </DataProvider>
+    <HostedWebGate>
+      <DataProvider>
+        <ThemedApp />
+      </DataProvider>
+    </HostedWebGate>
   );
 }

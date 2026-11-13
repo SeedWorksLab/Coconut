@@ -18,6 +18,7 @@ import { LoadingScreen } from '../components/loading-screen';
 import { ScreenToast } from '../components/screen-toast';
 import { useI18n } from '../i18n';
 import { useAppTheme } from '../theme';
+import { HOSTED_WEB } from '../config/hosted-web';
 import {
   resolveCloudConfig,
   SEEDWORKS_ACCOUNT_URL,
@@ -192,6 +193,10 @@ export default function SyncScreen() {
     setBusy(true);
     try {
       await signOutOfSupabase();
+      if (HOSTED_WEB && typeof window !== 'undefined') {
+        window.location.reload();
+        return;
+      }
       setSessionUser(null);
       setToast(t('sync.signedOut'));
     } catch {
@@ -303,7 +308,7 @@ export default function SyncScreen() {
         </Card.Content>
       </Card>
 
-      <Card mode="elevated" style={styles.card}>
+      {!HOSTED_WEB ? <Card mode="elevated" style={styles.card}>
         <Card.Title title={t('sync.provider')} style={styles.cardTitle} />
         <Card.Content style={styles.cardContent}>
           {!showCustomProject ? (
@@ -392,7 +397,7 @@ export default function SyncScreen() {
             </>
           )}
         </Card.Content>
-      </Card>
+      </Card> : null}
 
       <Card mode="elevated" style={styles.card}>
         <Card.Title title={t('sync.account')} style={styles.cardTitle} />
@@ -419,7 +424,7 @@ export default function SyncScreen() {
                 {t('sync.signOut')}
               </Button>
             </>
-          ) : (
+          ) : !HOSTED_WEB ? (
             <>
               <PaperTextInput
                 mode="outlined"
@@ -471,7 +476,7 @@ export default function SyncScreen() {
                 <HelperText type="info">{t('sync.saveCustomFirst')}</HelperText>
               ) : null}
             </>
-          )}
+          ) : null}
           {!usingCustomProject ? (
             <Button
               mode="text"
@@ -517,7 +522,7 @@ export default function SyncScreen() {
         </Card>
       ) : null}
 
-      <Card mode="elevated" style={styles.card}>
+      {!HOSTED_WEB ? <Card mode="elevated" style={styles.card}>
         <Card.Content style={styles.cardContent}>
           <List.Item
             title={t('sync.enableTitle')}
@@ -537,7 +542,7 @@ export default function SyncScreen() {
             )}
           />
         </Card.Content>
-      </Card>
+      </Card> : null}
 
       <PaperText variant="bodySmall" style={styles.footnote}>
         {usingCustomProject ? t('sync.customFootnote') : t('sync.seedworksFootnote')}
