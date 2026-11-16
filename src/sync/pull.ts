@@ -64,13 +64,6 @@ function pullFkResolver(maps: FkMaps) {
   };
 }
 
-// Local FK columns that are nullable. When the referenced parent uuid is
-// missing locally, the child is applied with a NULL key (lossless, mirrors the
-// remote ON DELETE SET NULL semantics) instead of being dropped permanently by
-// the incremental watermark. NOT NULL FK children keep skipping: an instance
-// without its parent is meaningless and a NULL would violate the column.
-const NULLABLE_FK_LOCAL_COLUMNS = new Set<string>(['budget_id', 'funded_budget_id']);
-
 function hasUnresolvedFk(
   adapter: SyncTableAdapter,
   remote: Record<string, unknown>,
@@ -84,7 +77,7 @@ function hasUnresolvedFk(
     if (
       remoteValue != null &&
       values[field.local] == null &&
-      !NULLABLE_FK_LOCAL_COLUMNS.has(field.local)
+      field.requiredFk
     ) {
       return true;
     }
@@ -407,7 +400,7 @@ async function repairNullableFks(
   // it when the remote copy is at least as new as the local one.
   for (const adapter of COMPLETE_ADAPTERS) {
     for (const field of adapter.fields) {
-      if (!field.fk || !NULLABLE_FK_LOCAL_COLUMNS.has(field.local)) {
+      if (!field.fk || field.requiredFk) {
         continue;
       }
       const locals = await db.getAllAsync<{ uuid: string; updated_at: string | null }>(

@@ -11,6 +11,16 @@ export interface WhatsNewEntry {
 
 export const whatsNew: WhatsNewEntry[] = [
   {
+    version: '1.3.0',
+    releasedAt: '2026-11-16T00:00:00.000Z',
+    intro: 'More reliable sync, and Coconut is now available on the web.',
+    features: [
+      'Fixed personal sync getting blocked by historical allocations of deleted budgets',
+      'Shared-expense personal mirrors are reconciled even when a personal upload fails',
+      'Use Coconut in your browser at https://seedworkslab.github.io/apps/coconut/web',
+    ],
+  },
+  {
     version: '1.2.3',
     releasedAt: '2026-11-12T00:00:00.000Z',
     intro: 'More control over your data, your first launch, and the way Coconut stays up to date.',

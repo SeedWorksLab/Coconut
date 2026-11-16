@@ -20,6 +20,7 @@ export interface Field {
   local: string;
   remote: string;
   fk?: boolean;
+  requiredFk?: boolean;
   booleanType?: boolean;
 }
 
@@ -153,7 +154,7 @@ export const COMPLETE_ADAPTERS: SyncTableAdapter[] = [
     naturalKeys: ['month_key', 'fixed_expense_id'],
     fields: [
       { local: 'month_key', remote: 'month_key' },
-      { local: 'fixed_expense_id', remote: 'fixed_expense_uuid', fk: true },
+      { local: 'fixed_expense_id', remote: 'fixed_expense_uuid', fk: true, requiredFk: true },
       { local: 'expected_amount_cents', remote: 'expected_amount_cents' },
       { local: 'actual_amount_cents', remote: 'actual_amount_cents' },
     ],
@@ -166,7 +167,7 @@ export const COMPLETE_ADAPTERS: SyncTableAdapter[] = [
     naturalKeys: ['month_key', 'budget_id'],
     fields: [
       { local: 'month_key', remote: 'month_key' },
-      { local: 'budget_id', remote: 'budget_uuid', fk: true },
+      { local: 'budget_id', remote: 'budget_uuid', fk: true, requiredFk: true },
       { local: 'planned_amount_cents', remote: 'planned_amount_cents' },
       { local: 'active', remote: 'active', booleanType: true },
     ],

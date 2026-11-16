@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { MIGRATIONS } from '../../src/database/migrations';
 import { updateSettings } from '../../src/database/settings';
 import { pushChanges } from '../../src/sync/push';
+import { deleteBudget } from '../../src/database/budgets';
 
 jest.mock('../../src/sync/supabase', () => ({
   getSupabaseUserId: jest.fn().mockResolvedValue('user-1'),
@@ -194,6 +195,15 @@ class FakeBuilder {
       return Promise.resolve({ error: new Error(`test failure for ${this.tableName}`) });
     }
     const columns = REMOTE_COLUMNS[this.tableName] ?? [];
+    const requiredParent = {
+      month_budgets: 'budget_uuid',
+      month_fixed_expenses: 'fixed_expense_uuid',
+    }[this.tableName];
+    if (requiredParent && payload[requiredParent] == null) {
+      return Promise.resolve({
+        error: new Error(`null value in column "${requiredParent}" violates not-null constraint`),
+      });
+    }
     for (const key of Object.keys(payload)) {
       if (!columns.includes(key)) {
         return Promise.resolve({
@@ -219,6 +229,7 @@ interface TestDb {
   getFirstAsync<T>(sql: string, params?: unknown[]): Promise<T | null>;
   getAllAsync<T>(sql: string, params?: unknown[]): Promise<T[]>;
   runAsync(sql: string, params?: unknown[]): Promise<unknown>;
+  withTransactionAsync(task: () => Promise<void>): Promise<void>;
 }
 
 type SqlParams = Parameters<ReturnType<DatabaseSync['prepare']>['get']>;
@@ -236,6 +247,16 @@ function makeDbApi(raw: DatabaseSync): TestDb {
     runAsync(sql: string, params: unknown[] = []): Promise<unknown> {
       raw.prepare(sql).run(...(params as SqlParams));
       return Promise.resolve(null);
+    },
+    async withTransactionAsync(task): Promise<void> {
+      raw.exec('BEGIN');
+      try {
+        await task();
+        raw.exec('COMMIT');
+      } catch (error) {
+        raw.exec('ROLLBACK');
+        throw error;
+      }
     },
   };
 }
@@ -285,6 +306,72 @@ function insertWithSuppressedTriggers(db: DatabaseSync, sql: string): void {
 }
 
 describe('pushChanges full-sync seeding and healing', () => {
+  it.each([false, true])('continues past historical allocations of deleted budgets (full=%s)', async (full) => {
+    const db = freshDb();
+    db.exec('PRAGMA foreign_keys = OFF');
+    insertMonth(db, '2020-01');
+    insertMonth(db, '2026-09');
+    const deletedId = insertBudget(db, 'Deleted category');
+    const keptId = insertBudget(db, 'Current category');
+    db.prepare(`INSERT INTO month_budgets (month_key, budget_id, planned_amount_cents)
+      VALUES ('2020-01', ?, 5000)`).run(deletedId);
+    db.prepare(`INSERT INTO month_budgets (month_key, budget_id, planned_amount_cents)
+      VALUES ('2026-09', ?, 6000)`).run(keptId);
+    const orphan = db.prepare("SELECT * FROM month_budgets WHERE month_key = '2020-01'").get();
+    await deleteBudget(deletedId, makeDbApi(db) as never);
+    insertTransaction(db, 1200, keptId);
+    db.exec(`INSERT INTO transactions
+      (month_key, date, amount_cents, merchant, origin_type, origin_id)
+      VALUES ('2026-09', '2026-09-18', 2500, 'Shared dinner', 'shared', 'expense-1')`);
+    const client = new FakeClient();
+
+    const result = await pushChanges(client as never, makeDbApi(db) as never, full);
+
+    expect(client.tables.get('month_budgets')?.size).toBe(1);
+    expect(client.tables.get('transactions')?.size).toBe(2);
+    expect(result.pushed).toBe(client.upsertLog.filter(
+      (entry) => entry.table !== 'settings' && entry.table !== 'sync_tombstones'
+    ).length);
+    expect(db.prepare("SELECT * FROM month_budgets WHERE month_key = '2020-01'").get()).toEqual(orphan);
+    expect(db.prepare("SELECT row_key FROM sync_outbox WHERE table_name = 'month_budgets'").all())
+      .toEqual([{ row_key: orphan?.uuid }]);
+    db.close();
+  });
+
+  it('retries a deferred allocation when its missing parent is restored', async () => {
+    const db = freshDb();
+    db.exec('PRAGMA foreign_keys = OFF');
+    insertMonth(db, '2026-09');
+    db.exec(`INSERT INTO month_budgets (month_key, budget_id, planned_amount_cents)
+      VALUES ('2026-09', 42, 5000)`);
+    const client = new FakeClient();
+    await pushChanges(client as never, makeDbApi(db) as never);
+    expect(client.tables.get('month_budgets')?.size).toBe(0);
+
+    db.exec("INSERT INTO budgets (id, name) VALUES (42, 'Restored category')");
+    await pushChanges(client as never, makeDbApi(db) as never);
+
+    expect(client.tables.get('month_budgets')?.size).toBe(1);
+    const parent = db.prepare('SELECT uuid FROM budgets WHERE id = 42').get();
+    expect([...client.tables.get('month_budgets')!.values()][0].budget_uuid).toBe(parent?.uuid);
+    expect(db.prepare('SELECT * FROM sync_outbox').all()).toEqual([]);
+    db.close();
+  });
+
+  it('backfills an existing parent before resolving its required budget UUID', async () => {
+    const db = freshDb();
+    insertMonth(db, '2026-09');
+    insertWithSuppressedTriggers(db, `INSERT INTO budgets (id, name) VALUES (42, 'Legacy');
+      INSERT INTO month_budgets (month_key, budget_id, planned_amount_cents)
+      VALUES ('2026-09', 42, 5000)`);
+    const client = new FakeClient();
+    await pushChanges(client as never, makeDbApi(db) as never);
+    const parent = db.prepare('SELECT uuid FROM budgets WHERE id = 42').get();
+    expect([...client.tables.get('month_budgets')!.values()][0].budget_uuid).toBe(parent?.uuid);
+    expect(client.tables.get('budgets')?.size).toBe(1);
+    db.close();
+  });
+
   it('uploads rows that were never logged in the outbox', async () => {
     const db = freshDb();
     insertMonth(db, '2026-09');

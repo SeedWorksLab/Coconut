@@ -6,7 +6,7 @@ import { whatsNew, whatsNewByLanguage } from '../../src/config/whats-new';
 
 describe('the what\u2019s new list', () => {
   it('lists the newest version first, so it is the one badged as latest', () => {
-    expect(whatsNew[0].version).toBe('1.2.3');
+    expect(whatsNew[0].version).toBe('1.3.0');
     const versions = whatsNew.map((entry) => entry.version);
     const sorted = [...versions].sort((a, b) => compareVersions(b, a));
     expect(versions).toEqual(sorted);
@@ -26,7 +26,7 @@ describe('the what\u2019s new list', () => {
   });
 
   it('keeps every language in sync with the English release list', () => {
-    expect(whatsNew[0].features).toHaveLength(7);
+    expect(whatsNew[0].features).toHaveLength(3);
     for (const language of ['hu', 'de'] as const) {
       const localized = whatsNewByLanguage[language];
       expect(localized[0].features).toHaveLength(whatsNew[0].features.length);
@@ -48,6 +48,16 @@ describe('the what\u2019s new list', () => {
       for (const feature of entry.features) {
         expect(feature.trim().length).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it('announces the November 16 web release in every language', () => {
+    for (const entries of Object.values(whatsNewByLanguage)) {
+      expect(entries[0].version).toBe('1.3.0');
+      expect(entries[0].releasedAt).toBe('2026-11-16T00:00:00.000Z');
+      expect(entries[0].features.join(' ')).toContain(
+        'https://seedworkslab.github.io/apps/coconut/web'
+      );
     }
   });
 });

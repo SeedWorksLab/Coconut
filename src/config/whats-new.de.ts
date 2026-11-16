@@ -2,6 +2,16 @@ import type { WhatsNewEntry } from './whats-new';
 
 export const whatsNewDe: WhatsNewEntry[] = [
   {
+    version: '1.3.0',
+    releasedAt: '2026-11-16T00:00:00.000Z',
+    intro: 'Zuverlässigere Synchronisierung und Coconut jetzt auch im Web.',
+    features: [
+      'Behoben: Historische Monatszuweisungen gelöschter Budgets blockierten die persönliche Synchronisierung',
+      'Persönliche Kopien gemeinsamer Ausgaben werden auch dann abgeglichen, wenn ein persönlicher Upload fehlschlägt',
+      'Nutze Coconut im Browser unter https://seedworkslab.github.io/apps/coconut/web',
+    ],
+  },
+  {
     version: '1.2.3',
     releasedAt: '2026-11-12T00:00:00.000Z',
     intro: 'Mehr Kontrolle über deine Daten, den ersten Start und die Updates von Coconut.',

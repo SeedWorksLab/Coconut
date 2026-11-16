@@ -234,11 +234,11 @@ async function pushRow(
   entry: OutboxEntry,
   userId: string,
   maps: FkMaps
-): Promise<void> {
+): Promise<boolean> {
   const localRow = await readLocalRow(db, adapter, entry.row_key);
   if (!localRow) {
     await pruneOutbox(db, entry.table_name, entry.row_key);
-    return;
+    return false;
   }
 
   const sharedMirror = isSharedMirror(adapter, localRow);
@@ -255,7 +255,7 @@ async function pushRow(
     }
     if (tombstone) {
       await pruneOutbox(db, entry.table_name, entry.row_key);
-      return;
+      return false;
     }
   }
   const remoteUpdatedAt = remote?.updated_at ?? null;
@@ -266,7 +266,15 @@ async function pushRow(
   // with the lossy local one on every full sync.
   if (remoteUpdatedAt && !isRemoteNewer(remoteUpdatedAt, localUpdatedAt)) {
     await pruneOutbox(db, entry.table_name, entry.row_key);
-    return;
+    return false;
+  }
+
+  const remoteValues = adapter.toRemote(localRow, pushFkResolver(maps));
+  // Older budget deletions retained historical allocations after removing their
+  // definition. Keep those local records and their retry entries, but never send
+  // a NULL required parent or let one orphan block the rest of personal sync.
+  if (adapter.fields.some((field) => field.requiredFk && remoteValues[field.remote] == null)) {
+    return false;
   }
 
   const payload: Record<string, unknown> = {
@@ -276,7 +284,7 @@ async function pushRow(
     // converge on one row instead of duplicating the expense.
     uuid: remote?.uuid ?? localRow.uuid ?? null,
     updated_at: localUpdatedAt ?? new Date().toISOString(),
-    ...adapter.toRemote(localRow, pushFkResolver(maps)),
+    ...remoteValues,
   };
 
   const table = client.from(adapter.remoteTable);
@@ -291,6 +299,7 @@ async function pushRow(
     throw new Error(`Push failed for ${adapter.remoteTable}: ${error.message}`);
   }
   await pruneOutbox(db, entry.table_name, entry.row_key);
+  return true;
 }
 
 async function deleteRemoteRow(
@@ -429,8 +438,9 @@ export async function pushChanges(
       if (!adapter) {
         continue;
       }
-      await pushRow(client, db, adapter, entry, userId, maps);
-      pushed += 1;
+      if (await pushRow(client, db, adapter, entry, userId, maps)) {
+        pushed += 1;
+      }
     }
   }
 

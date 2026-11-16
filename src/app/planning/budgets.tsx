@@ -72,6 +72,7 @@ export default function BudgetsScreen() {
             <DragHandle isDragged={isDragged} handleProps={handleProps} label={t('planning.reorder', { name: item.name })} />
             <List.Item
               title={item.name}
+              left={(props) => <List.Icon {...props} icon="tag-outline" color={item.color ?? undefined} />}
               description={t('planning.defaultAmount', {
                 amount: formatCents(item.defaultAmountCents, symbol),
               })}

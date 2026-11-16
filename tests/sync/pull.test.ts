@@ -182,6 +182,26 @@ const SINCE = '2020-01-01T00:00:00.000Z';
 const UPDATED = '2026-09-18T10:00:00.000Z';
 
 describe('pullChanges', () => {
+  it('does not apply a monthly allocation with a missing required budget as NULL', async () => {
+    const raw = freshDb();
+    raw.exec("INSERT INTO months (month_key, allowance_cents, starting_reserve_cents) VALUES ('2026-09', 50000, 0)");
+    const client = new FakeClient();
+    client.seed('month_budgets', {
+      uuid: 'allocation-1', month_key: '2026-09', budget_uuid: 'missing-budget',
+      planned_amount_cents: 5000, active: true, updated_at: UPDATED,
+    });
+    client.seed('transactions', {
+      uuid: 'tx-1', month_key: '2026-09', date: '2026-09-10',
+      amount_cents: 1200, merchant: 'Shop', updated_at: UPDATED,
+    });
+
+    await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
+
+    expect(raw.prepare('SELECT * FROM month_budgets').all()).toEqual([]);
+    expect(raw.prepare('SELECT amount_cents FROM transactions').get()).toMatchObject({ amount_cents: 1200 });
+    raw.close();
+  });
+
   it('does not re-import a stale remote copy after its tombstone, even beyond the incremental window', async () => {
     const raw = freshDb();
     raw.exec("INSERT INTO months (month_key, allowance_cents, starting_reserve_cents) VALUES ('2026-09', 50000, 0)");

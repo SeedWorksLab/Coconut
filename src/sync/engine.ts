@@ -61,7 +61,9 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
     return null;
   }
   if (personalSyncInProgress) {
-    await personalSyncInProgress;
+    // Wait for the database work to finish, but let shared sync recover even
+    // when the preceding personal upload failed.
+    await personalSyncInProgress.catch(() => undefined);
   }
   sharedSyncInProgress = (async () => {
     const database = db ?? (await getDatabase());
@@ -129,7 +131,7 @@ export async function syncPersonalChanges(
     return null;
   }
   if (sharedSyncInProgress) {
-    await sharedSyncInProgress;
+    await sharedSyncInProgress.catch(() => undefined);
   }
   personalSyncInProgress = (async () => {
     const database = db ?? (await getDatabase());
@@ -146,6 +148,7 @@ export async function syncPersonalChanges(
       await ensureSyncIdentity(database, state, user.id);
       await updateSyncState({ lastSyncStatus: 'syncing' }, database);
       const client = await getClient();
+      await reconcileSharedTransactions(user.id, database);
       const pushed = await pushChanges(client, database, false);
       const pulled = await pullChanges(
         client,
@@ -187,10 +190,10 @@ export async function syncNow(db?: SQLiteDatabase): Promise<SyncOutcome | null> 
     return syncInProgress;
   }
   if (sharedSyncInProgress) {
-    await sharedSyncInProgress;
+    await sharedSyncInProgress.catch(() => undefined);
   }
   if (personalSyncInProgress) {
-    await personalSyncInProgress;
+    await personalSyncInProgress.catch(() => undefined);
   }
   syncInProgress = (async () => {
     const database = db ?? (await getDatabase());

@@ -2,6 +2,16 @@ import type { WhatsNewEntry } from './whats-new';
 
 export const whatsNewHu: WhatsNewEntry[] = [
   {
+    version: '1.3.0',
+    releasedAt: '2026-11-16T00:00:00.000Z',
+    intro: 'Megbízhatóbb szinkronizálás, és a Coconut mostantól a weben is elérhető.',
+    features: [
+      'Javítva a személyes szinkronizálás elakadása a törölt költségvetések korábbi havi keretei miatt',
+      'A közös kiadások személyes másolatai akkor is frissülnek, ha egy személyes feltöltés sikertelen',
+      'Használd a Coconutot böngészőben: https://seedworkslab.github.io/apps/coconut/web',
+    ],
+  },
+  {
     version: '1.2.3',
     releasedAt: '2026-11-12T00:00:00.000Z',
     intro: 'Több kontroll az adataid, az első indítás és a Coconut frissítései felett.',

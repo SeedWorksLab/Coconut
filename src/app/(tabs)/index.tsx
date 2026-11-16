@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from '../../components/keyboard-aware-scroll-view';
-import { Button, Card, FAB, List, Text, TouchableRipple } from 'react-native-paper';
+import { Button, Card, FAB, Icon, List, Text, TouchableRipple } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAppData } from '../../data/DataProvider';
 import { useI18n } from '../../i18n';
@@ -295,7 +295,10 @@ export default function OverviewScreen() {
                 >
                   <View>
                     <View style={styles.row}>
-                      <Text variant="bodyMedium">{budget.name}</Text>
+                      <View style={styles.budgetLabel}>
+                        <Icon source="tag-outline" size={20} color={budget.color ?? theme.colors.onSurfaceVariant} />
+                        <Text variant="bodyMedium" style={styles.budgetName}>{budget.name}</Text>
+                      </View>
                       <Text variant="bodySmall" style={{ color: over ? theme.semantic.overBudget : theme.colors.onSurfaceVariant }}>
                         {formatCents(status.spentCents, symbol)} / {formatCents(status.plannedCents, symbol)}
                         {over ? t('overview.over') : ''}
@@ -304,7 +307,7 @@ export default function OverviewScreen() {
                     <MonthProgressBar
                       progress={fraction}
                       monthProgress={elapsed}
-                      color={over ? theme.semantic.overBudget : undefined}
+                      color={over ? theme.semantic.overBudget : budget.color ?? undefined}
                     />
                   </View>
                 </TouchableRipple>
@@ -435,6 +438,16 @@ const styles = StyleSheet.create({
   },
   budgetRow: {
     marginVertical: 6,
+  },
+  budgetLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  budgetName: {
+    flexShrink: 1,
   },
   transactionRight: {
     alignItems: 'flex-end',
