@@ -1,0 +1,64 @@
+If a user has a subscription configured in coconut android, their account logged in on desktop doesnt see it. So, a fix for subscriptions properly syncing between devices is needed
+
+- [ ] Implementation present; acceptance verification blocked.
+  - Added migration 21 and sync adapters/FK mapping for saved monthly subscription charges. Existing charge amounts are preserved and queued for upload.
+  - Added central backend migration: `../Supabase/supabase/migrations/20261118090000_coconut_month_subscription_sync.sql`. It has NOT been applied to a live backend; deploy it before these clients.
+  - Regression tests cover full/incremental uploads, device-local parent IDs, historical prices, deleted definitions, duplicate pulls, tombstones and migration change capture.
+  - Required Android-to-desktop account verification has not run. `adb devices` returned no connected devices. Live backend/RLS acceptance has not run.
+  - Retest after the user connected an emulator: `adb devices -l` finds `emulator-5554` (`sdk_gphone16k_x86_64`). The official cloud's read-only REST schema probe for `month_subscriptions?select=uuid&limit=0` with `Accept-Profile: coconut` returns HTTP 404 / `PGRST205`: `coconut.month_subscriptions` is absent from the schema cache. Live subscription-sync acceptance remains blocked; deploy the central migration before installing/launching the new client against the existing account. No backend changes were made.
+
+The web cannot log in. If a user has their seedworks account logged in, then they go to the web version of coconut, they are presented with a screen to either start fresh or log in. This shouldnt happen, they should already have their data and skip this screen. And then, if they click on log in, they get the error that their login was successful, but coconut was unable to download their user data. So, a fix for this is also needed
+
+- [ ] Implementation present; acceptance verification pending.
+  - Hosted web skips first-run onboarding, recognizes the official hosted URL even without the build flag, and clears the hosted build cache to avoid reusing an unhosted bundle.
+  - First-run account restore pulls data before enabling background uploads instead of attempting a full upload first. Tests cover failed downloads, account binding and missing authentication.
+  - Existing Seed-session browser login and the originally reported live download failure have NOT been reproduced/verified against a real account; do not treat them as confirmed fixed yet.
+
+For the coconut updates, coconut should send a notification which displays the progress bar of how the apk download is going. Else users have no idea what happened after they clicked on "update".
+
+- [ ] Implementation present; device verification blocked.
+  - Added a local Expo Android module using DownloadManager's system progress/completion notification, then handing its content URI to the APK installer.
+  - Mocked installer tests cover success, failure/cancellation and missing APKs; Expo autolinking resolves the module.
+  - No connected Android device/emulator is available to verify actual progress notifications, background download, cancellation or installer handoff. No emulator/app data was erased.
+  - `./gradlew :coconut-update:compileDebugKotlin --console=plain` in `android`: passed, BUILD SUCCESSFUL; no warnings in the new module (dependency/Gradle deprecation warnings remain).
+
+The desktop version of coconut does not show up in their seed account. Android and web show up correctly under connected apps, but coconut desktop not.
+
+- [ ] Implementation present; live portal verification pending.
+  - Electron now reports `Coconut (desktop)` instead of `Coconut (web)`.
+  - Account usage/connection reporting is attempted before data uploads, so a failed upload no longer prevents registration.
+  - Tests distinguish desktop/browser identities and verify reporting is attempted before a failing personal upload. Real Electron-to-Seed connected-app verification has NOT run.
+
+### Verification log — 2026-11-18
+
+- `npm test -- --runInBand`: final rerun passed, 63 suites / 639 tests, after removing the provisional hardcoded 1.3.1 notes and their extra test under the updated release contract.
+- `npx tsc --noEmit`: passed (exit 0).
+- `npx expo lint`: passed (exit 0).
+- `npx expo export --platform web`: passed; exported `dist`.
+- `npm run export:hosted-web`: passed; generated the hosted bundle and ZIP locally, without staging or deploying them.
+- `npx expo-modules-autolinking resolve --platform android`: passed; includes `coconut-update`.
+- `./gradlew :coconut-update:compileDebugKotlin --console=plain` in `android`: passed (59 actionable tasks; BUILD SUCCESSFUL).
+- `npx expo prebuild --platform android --no-install`: passed; reported the existing missing `expo-system-ui` warning. Its automatic package-script changes were undone.
+- `adb devices`: no connected devices; required runtime acceptance unavailable.
+- The stricter release-plan contract was received during implementation, after changes for all four tasks existed. Work is stopped for required device/live-account verification; no task is marked complete or release-ready.
+- No versions were bumped; no commits, tags, pushes, publication, backend migration deployment or emulator data deletion were performed.
+- The provisional hardcoded What's New entry was removed to follow the updated contract. `release-notes/1.3.1.md` is deferred until all tasks and the Definition of Done pass.
+
+### Emulator retest — 2026-11-18
+
+- `adb devices -l`: `emulator-5554` connected and authorized.
+- `adb -s emulator-5554 shell dumpsys package com.coconut.app`: installed app is 1.0.3, versionCode 13, debuggable.
+- Read-only file inspection located the existing SQLite database and WAL under `files/SQLite/`; the absence of a `databases/` directory was only a path mismatch.
+- Official cloud schema probe: HTTP 404 / `PGRST205` for `coconut.month_subscriptions`. Stopped at task 1's required backend prerequisite; tasks 2–4 have not received further acceptance testing.
+- `./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --console=plain` in `android`: FAILED (exit 1) at `:react-native-worklets:configureCMakeRelWithDebInfo[x86_64]` with `WARNING: A restricted method in java.lang.System has been called`. Android JavaScript bundling succeeded, but no new APK was installed or client launched. This native build/toolchain failure is an additional acceptance blocker; it is not a failure of the earlier standalone `coconut-update` Kotlin compile.
+- Private host-side database snapshot completed after force-stopping Coconut; SQLite `PRAGMA integrity_check` returned `ok`, installed schema is version 15. The snapshot contains no subscription definitions or monthly charges, so this dataset alone cannot demonstrate the reported subscription-sync scenario. Snapshot is outside the repository with directory mode 0700 and file mode 0600. No emulator or app data was deleted.
+
+### Java build diagnosis and backend follow-up — 2026-11-18
+
+- User reports the backend migration has been deployed. The same unauthenticated schema probe now returns HTTP 401 / `42501 permission denied for schema coconut`, rather than the previous missing-table error. This does not verify authenticated table access/RLS; that requires a signed-in account.
+- Reproduced the failing task with `./gradlew :react-native-worklets:configureCMakeRelWithDebInfo\[x86_64\] --stacktrace --console=plain` on system OpenJDK 25.0.5. The exception originates in Android Gradle plugin `GeneratePrefabPackagesKt.reportErrors`, not application code.
+- Prefab stderr identifies JNA's `System::load` native-access warning under Java 25. Retrying the build using installed OpenJDK 21.0.13 with `JAVA_HOME=/usr/lib/jvm/java-21-openjdk`, the matching PATH and `NODE_ENV=production`; result pending. No dependencies were patched or upgraded.
+- Added the JDK 21 requirement and setup/troubleshooting instructions to `README.md`.
+- Private snapshot inspection confirms there is no enabled sync state or saved authentication. A signed-in test account/subscription is required for live cross-device acceptance; none has been invented or added to the user's financial dataset.
+- Applied migrations 16–21 to a private host-side COPY of the emulator's schema-15 SQLite snapshot using the actual migration definitions, including `isAlreadyApplied` checks. Result: schema 21, integrity `ok`, all original fields and row counts unchanged across 11 personal-data tables. This verifies the migration against the existing dataset, not emulator runtime or live sync.
+- `git diff --check`: passed after the Java troubleshooting documentation update.

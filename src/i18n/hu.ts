@@ -1,6 +1,10 @@
 import type { TranslationKey } from './en';
 
 export const hu: Partial<Record<TranslationKey, string>> = {
+  'whatsNew.loading': 'Kiadási megjegyzések betöltése',
+  'whatsNew.offline': 'Nem sikerült frissíteni. A mentett vagy beépített megjegyzések láthatók.',
+  'whatsNew.empty': 'Ehhez a verzióhoz még nincsenek közzétett kiadási megjegyzések.',
+  'whatsNew.refresh': 'Kiadási megjegyzések frissítése',
   'common.add': 'Hozzáadás',
   'common.back': 'Vissza',
   'common.cancel': 'Mégse',

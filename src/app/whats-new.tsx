@@ -2,17 +2,27 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from '../components/keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
-import { Appbar, Text } from 'react-native-paper';
+import { ActivityIndicator, Appbar, Button, Text } from 'react-native-paper';
 import dayjs from 'dayjs';
 import { useAppTheme } from '../theme';
 import { whatsNewByLanguage } from '../config/whats-new';
 import { useI18n } from '../i18n';
+import { releaseInfo } from '../config/release-info';
+import { useReleaseNotes } from '../updates/use-release-notes';
+import { mergeReleaseNotes } from '../updates/release-notes';
+import { ReleaseNoteText } from '../components/release-note-text';
 
 export default function WhatsNewScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const { t, language } = useI18n();
-  const entries = whatsNewByLanguage[language];
+  const feed = useReleaseNotes('Coconut', releaseInfo.version);
+  const entries = mergeReleaseNotes(feed.entries, whatsNewByLanguage[language].map((entry) => ({
+    version: entry.version,
+    releasedAt: entry.releasedAt,
+    notes: [entry.intro, entry.features.map((feature) => `- ${feature}`).join('\n')]
+      .filter(Boolean).join('\n\n'),
+  })), releaseInfo.version);
 
   return (
     <>
@@ -21,6 +31,12 @@ export default function WhatsNewScreen() {
         <Appbar.Content title={t('screen.whatsNew')} />
       </Appbar.Header>
       <KeyboardAwareScrollView contentContainerStyle={styles.container}>
+        {feed.loading ? <ActivityIndicator accessibilityLabel={t('whatsNew.loading')} /> : null}
+        {feed.failed ? <Text accessibilityRole="alert">{t('whatsNew.offline')}</Text> : null}
+        {!feed.loading && !entries.length ? <Text>{t('whatsNew.empty')}</Text> : null}
+        <Button onPress={feed.refresh} disabled={feed.loading} accessibilityLabel={t('whatsNew.refresh')}>
+          {t('whatsNew.refresh')}
+        </Button>
         {entries.map((entry, index) => {
           const releasedLabel =
             entry.releasedAt === ''
@@ -44,23 +60,7 @@ export default function WhatsNewScreen() {
               <Text variant="bodySmall" style={styles.released}>
                 {releasedLabel}
               </Text>
-              {entry.intro ? (
-                <Text variant="bodyMedium" style={styles.intro}>
-                  {entry.intro}
-                </Text>
-              ) : null}
-              <View style={styles.features}>
-                {entry.features.map((feature) => (
-                  <View key={feature} style={styles.featureRow}>
-                    <Text variant="bodyMedium" style={[styles.bullet, { color: theme.colors.primary }]}>
-                      {'\u2022'}
-                    </Text>
-                    <Text variant="bodyMedium" style={styles.feature}>
-                      {feature}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+              <View style={styles.intro}><ReleaseNoteText notes={entry.notes} /></View>
             </View>
           );
         })}
@@ -96,20 +96,5 @@ const styles = StyleSheet.create({
   },
   intro: {
     marginTop: 12,
-  },
-  features: {
-    marginTop: 8,
-    gap: 6,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-start',
-  },
-  bullet: {
-    fontWeight: '700',
-  },
-  feature: {
-    flex: 1,
   },
 });

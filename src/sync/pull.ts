@@ -17,6 +17,7 @@ const PARENT_TABLE_BY_FK_REMOTE_FIELD: Record<string, string> = {
   budget_uuid: 'budgets',
   funded_budget_uuid: 'budgets',
   fixed_expense_uuid: 'fixed_expenses',
+  subscription_uuid: 'yearly_subscriptions',
 };
 
 function toBindValue(value: unknown): SQLiteBindValue {
@@ -32,20 +33,25 @@ function toBindValue(value: unknown): SQLiteBindValue {
 interface FkMaps {
   budgetIdByUuid: Map<string, number | null>;
   fixedExpenseIdByUuid: Map<string, number | null>;
+  subscriptionIdByUuid: Map<string, number | null>;
 }
 
 async function loadFkMaps(db: SQLiteDatabase): Promise<FkMaps> {
-  const [budgets, fixedExpenses] = await Promise.all([
+  const [budgets, fixedExpenses, subscriptions] = await Promise.all([
     db.getAllAsync<{ uuid: string; id: number }>(
       'SELECT uuid, id FROM budgets WHERE uuid IS NOT NULL'
     ),
     db.getAllAsync<{ uuid: string; id: number }>(
       'SELECT uuid, id FROM fixed_expenses WHERE uuid IS NOT NULL'
     ),
+    db.getAllAsync<{ uuid: string; id: number }>(
+      'SELECT uuid, id FROM yearly_subscriptions WHERE uuid IS NOT NULL'
+    ),
   ]);
   return {
     budgetIdByUuid: new Map(budgets.map((row) => [row.uuid, row.id])),
     fixedExpenseIdByUuid: new Map(fixedExpenses.map((row) => [row.uuid, row.id])),
+    subscriptionIdByUuid: new Map(subscriptions.map((row) => [row.uuid, row.id])),
   };
 }
 
@@ -59,6 +65,9 @@ function pullFkResolver(maps: FkMaps) {
     }
     if (remoteField === 'fixed_expense_uuid') {
       return maps.fixedExpenseIdByUuid.get(parentUuid) ?? null;
+    }
+    if (remoteField === 'subscription_uuid') {
+      return maps.subscriptionIdByUuid.get(parentUuid) ?? null;
     }
     return null;
   };
@@ -141,6 +150,8 @@ function captureInsertedParent(maps: FkMaps, adapter: SyncTableAdapter, values: 
     maps.budgetIdByUuid.set(uuid, id);
   } else if (adapter.localTable === 'fixed_expenses') {
     maps.fixedExpenseIdByUuid.set(uuid, id);
+  } else if (adapter.localTable === 'yearly_subscriptions') {
+    maps.subscriptionIdByUuid.set(uuid, id);
   }
 }
 

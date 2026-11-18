@@ -76,6 +76,7 @@ person's split, so the shared record and the personal budgets never drift apart.
 Prerequisites:
 
 - Node.js 22+
+- JDK 21 for Android native builds, with `JAVA_HOME` pointing to that installation
 - Android SDK (API 29 / Android 10 or newer) and an emulator
 
 | Command            | Description                                   |
@@ -87,6 +88,27 @@ Prerequisites:
 | `npm test`         | Run unit tests                                |
 | `npm run typecheck`| TypeScript check (`tsc --noEmit`)             |
 | `npm run lint`     | Lint the code (`expo lint`)                   |
+
+### Android build Java version
+
+Use JDK 21 for Expo prebuild and Gradle, even if your system defaults to a newer
+Java version. Java 25 emits a native-access warning from Prefab's bundled JNA;
+the Android Gradle plugin treats that warning as an error during native CMake
+configuration. This can appear as a `react-native-worklets` failure rather than
+a Java compatibility error.
+
+For example, on Fedora with OpenJDK 21 installed:
+
+```sh
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version
+npx expo run:android
+```
+
+Use your own JDK 21 installation path on other systems. Android Studio's Gradle
+JDK setting should also point to JDK 21. Updating the installed app must preserve
+its data; never uninstall it or clear its storage to resolve a build problem.
 
 ## Hosted web build
 

@@ -1,4 +1,8 @@
 export const en = {
+  'whatsNew.loading': 'Loading release notes',
+  'whatsNew.offline': 'Could not refresh. Showing saved or bundled notes.',
+  'whatsNew.empty': 'No release notes published for this version yet.',
+  'whatsNew.refresh': 'Refresh release notes',
   'common.add': 'Add',
   'common.back': 'Back',
   'common.cancel': 'Cancel',

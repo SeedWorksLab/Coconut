@@ -4,6 +4,7 @@ import { useRootNavigationState, useRouter } from 'expo-router';
 import { useAppData } from '../data/DataProvider';
 import { getGreeterSeen, setGreeterSeen } from '../database/greeterPrefs';
 import { getTutorialSeen } from '../database/tutorialPrefs';
+import { HOSTED_WEB } from '../config/hosted-web';
 
 export function AutoOnboarding() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export function AutoOnboarding() {
   const canNavigate = navigationState?.key != null;
 
   useEffect(() => {
-    if (!ready || !canNavigate) {
+    if (HOSTED_WEB || !ready || !canNavigate) {
       return;
     }
     let active = true;

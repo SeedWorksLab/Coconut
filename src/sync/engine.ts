@@ -83,6 +83,7 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
       const startedAt = nowIso();
       await updateSyncState({ lastSyncStatus: 'syncing' }, database);
       const client = await getClient();
+      await reportSeedWorksUsage(database, client).catch(() => undefined);
       const pushed = await pushSharedChanges(client, database, user.id, { changesOnly: true });
       const since = await getMeta(SHARED_LAST_SYNC_KEY, database);
       const pulled = await pullSharedChanges(
@@ -97,7 +98,6 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
       await pullSettings(database, client, EPOCH, ['username', 'language']);
       await setMeta(SHARED_LAST_SYNC_KEY, startedAt, database);
       await updateSyncState({ lastSyncStatus: 'success', lastSyncError: null }, database);
-      await reportSeedWorksUsage(database, client).catch(() => undefined);
       return { pushed, pulled };
     } catch (error) {
       if (error instanceof SyncAuthError) {
@@ -148,6 +148,7 @@ export async function syncPersonalChanges(
       await ensureSyncIdentity(database, state, user.id);
       await updateSyncState({ lastSyncStatus: 'syncing' }, database);
       const client = await getClient();
+      await reportSeedWorksUsage(database, client).catch(() => undefined);
       await reconcileSharedTransactions(user.id, database);
       const pushed = await pushChanges(client, database, false);
       const pulled = await pullChanges(
@@ -164,7 +165,6 @@ export async function syncPersonalChanges(
         },
         database
       );
-      await reportSeedWorksUsage(database, client).catch(() => undefined);
       return { pushed, pulled };
     } catch (error) {
       if (error instanceof SyncAuthError) {
@@ -212,6 +212,7 @@ export async function syncNow(db?: SQLiteDatabase): Promise<SyncOutcome | null> 
       const startedAt = nowIso();
       await updateSyncState({ lastSyncStatus: 'syncing' }, database);
       const client = await getClient();
+      await reportSeedWorksUsage(database, client).catch(() => undefined);
       // Always re-sync the whole local database so rows that existed before
       // change-capture triggers were installed still get uploaded.
       const sharedPushed = await pushSharedChanges(client, database, user.id);
@@ -238,7 +239,6 @@ export async function syncNow(db?: SQLiteDatabase): Promise<SyncOutcome | null> 
         },
         database
       );
-      await reportSeedWorksUsage(database, client).catch(() => undefined);
       return { pushed: pushResult, pulled: pullResult, sharedPushed, sharedPulled };
     } catch (error) {
       if (error instanceof SyncAuthError) {

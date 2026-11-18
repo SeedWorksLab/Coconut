@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'build', 'hosted-web');
 const archive = path.join(root, 'build', 'coconut-web.zip');
 const env = { ...process.env, EXPO_PUBLIC_COCONUT_HOSTED_WEB: '1' };
-const result = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', output], {
+const result = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--clear', '--output-dir', output], {
   cwd: root, env, stdio: 'inherit',
 });
 if (result.status !== 0) process.exit(result.status || 1);

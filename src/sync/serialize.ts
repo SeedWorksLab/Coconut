@@ -212,6 +212,19 @@ export const COMPLETE_ADAPTERS: SyncTableAdapter[] = [
     ],
   }),
   makeAdapter({
+    localTable: 'month_subscriptions',
+    remoteTable: 'month_subscriptions',
+    pullOrder: 10,
+    identityColumn: 'uuid',
+    naturalKeys: ['month_key', 'subscription_id'],
+    fields: [
+      { local: 'month_key', remote: 'month_key' },
+      { local: 'subscription_id', remote: 'subscription_uuid', fk: true },
+      { local: 'name', remote: 'name' },
+      { local: 'amount_cents', remote: 'amount_cents' },
+    ],
+  }),
+  makeAdapter({
     localTable: 'transactions',
     remoteTable: 'transactions',
     pullOrder: 9,

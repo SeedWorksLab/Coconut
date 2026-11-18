@@ -1,5 +1,16 @@
 # Coconut — Budget Tracking Application
 
+### Approved release-workflow amendment
+
+Versioned plans in `release-plans/<version>` and verified notes in
+`release-notes/<version>.md` replace new entries in the legacy release-plan and
+hardcoded What's New files. Opening What's New explicitly refreshes public
+notes from the official GitHub releases, with a persistent offline cache and an
+installed-version cap. This is an approved network exception independent of
+cloud sync; it sends no financial/account data and never refreshes at startup.
+See `AGENTS.md` and `release-plans/README.md` for the ordered implementation and
+separate, user-invoked `--github --agent-notes` release procedure.
+
 ## 1. Purpose
 
 Coconut is a private, offline-first Android budget management application designed around

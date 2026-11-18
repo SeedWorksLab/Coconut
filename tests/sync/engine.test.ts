@@ -4,6 +4,7 @@ import { pushChanges } from '../../src/sync/push';
 import { pullChanges } from '../../src/sync/pull';
 import { pullSharedChanges } from '../../src/sync/shared';
 import { reconcileSharedTransactions } from '../../src/database/sharedLinking';
+import { reportSeedWorksUsage } from '../../src/sync/usage-report';
 
 jest.mock('../../src/database/syncState', () => ({
   getSyncState: jest.fn().mockResolvedValue({ enabled: true, lastSyncAt: null }),
@@ -51,6 +52,7 @@ beforeEach(() => {
 it('reconciles local shared mirrors before an upload can fail', async () => {
   jest.mocked(pushChanges).mockImplementationOnce(async () => {
     expect(reconcileSharedTransactions).toHaveBeenCalledWith('user-1', db);
+    expect(reportSeedWorksUsage).toHaveBeenCalledWith(db, {});
     throw new Error('Upload failed');
   });
   await expect(syncPersonalChanges(db)).rejects.toThrow('Upload failed');

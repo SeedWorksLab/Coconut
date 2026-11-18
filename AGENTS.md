@@ -47,6 +47,24 @@ ships with Expo).
 
 ## 2. Report and Plan
 
+### Versioned release plans
+
+When the prompt names `release-plans/<version>`, that file is the task specification.
+Read it in full, then implement its tasks strictly in written order. A task may
+span multiple lines. Test and verify each task before starting the next; stop
+and report ambiguity, failures or unavailable required device checks. Record
+progress and exact verification results in the plan without rewriting requirements.
+After every task and the Definition of Done pass, write user-facing
+`release-notes/<version>.md` describing only completed, verified changes.
+Use paragraphs, `###` headings and `-` bullets; no outer Release Notes heading
+or HTML markers. Do not add new hardcoded What's New entries.
+Do not bump versions, run release scripts, commit, tag, push or publish unless
+separately asked. See `release-plans/README.md` for the shared contract.
+
+User-requested What's New refreshes from the official GitHub release feed are
+an approved network exception, independent of cloud sync. No background refresh
+or personal data transmission is permitted.
+
 When starting work:
 
 1. Read `idea.txt` — it defines the product.

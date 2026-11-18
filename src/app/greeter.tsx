@@ -18,10 +18,10 @@ import { ScreenFade } from '../components/screen-fade';
 import { setGreeterSeen } from '../database/greeterPrefs';
 import { getTutorialSeen, setTutorialSeen } from '../database/tutorialPrefs';
 import { signInToSupabase } from '../sync/supabase';
-import { syncNow } from '../sync/engine';
+import { restoreAccountData } from '../sync/restore-account';
 
 export default function GreeterScreen() {
-  const { settings, setLanguage, setSyncEnabled, refresh } = useAppData();
+  const { settings, setLanguage, refresh } = useAppData();
   const { t } = useI18n();
   const theme = useAppTheme();
   const router = useRouter();
@@ -71,11 +71,7 @@ export default function GreeterScreen() {
     try {
       await signInToSupabase(email.trim(), password);
       signedIn = true;
-      await setSyncEnabled(true);
-      const outcome = await syncNow();
-      if (!outcome) {
-        throw new Error('Sync did not run');
-      }
+      await restoreAccountData();
       await refresh();
     } catch {
       setError(signedIn ? t('greeter.restoreFailed') : t('greeter.loginFailed'));

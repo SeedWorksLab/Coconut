@@ -26,6 +26,35 @@ function insertTransaction(db: DatabaseSync, amountCents: number, merchant: stri
 }
 
 describe('sync change-capture triggers (migration 7 + 9)', () => {
+  it('migration 21 preserves and queues existing charges and captures later edits and deletes', () => {
+    const db = new DatabaseSync(':memory:');
+    applyMigrations(db, 1, 20);
+    db.exec(`INSERT INTO months (month_key, allowance_cents, starting_reserve_cents)
+      VALUES ('2026-09', 50000, 0);
+      INSERT INTO month_subscriptions (month_key, subscription_id, name, amount_cents)
+      VALUES ('2026-09', 42, 'Saved price', 1500);`);
+    applyMigrations(db, 21, 21);
+    const charge = db.prepare('SELECT * FROM month_subscriptions').get();
+    expect(charge).toMatchObject({ name: 'Saved price', amount_cents: 1500, subscription_id: 42 });
+    expect(charge?.uuid).toEqual(expect.any(String));
+    expect(db.prepare("SELECT row_key FROM sync_outbox WHERE table_name = 'month_subscriptions'").get())
+      .toEqual({ row_key: charge?.uuid });
+    db.exec(`UPDATE month_subscriptions SET amount_cents = 1700;
+      DELETE FROM sync_outbox WHERE table_name = 'month_subscriptions';
+      INSERT INTO sync_meta (key, value) VALUES ('pull_in_progress', '1')
+        ON CONFLICT (key) DO UPDATE SET value = '1';
+      INSERT INTO month_subscriptions (month_key, uuid, name, amount_cents, updated_at)
+        VALUES ('2026-09', 'pulled', 'Pulled', 1000, '2026-09-01T00:00:00.000Z');`);
+    expect(db.prepare("SELECT * FROM sync_outbox WHERE table_name = 'month_subscriptions'").all()).toEqual([]);
+    db.exec(`UPDATE sync_meta SET value = '0' WHERE key = 'pull_in_progress';
+      UPDATE month_subscriptions SET amount_cents = 1800 WHERE uuid = 'pulled';`);
+    expect(db.prepare("SELECT row_key FROM sync_outbox WHERE table_name = 'month_subscriptions'").get())
+      .toEqual({ row_key: 'pulled' });
+    db.exec("DELETE FROM month_subscriptions WHERE uuid = 'pulled'");
+    expect(db.prepare("SELECT row_key FROM sync_tombstones WHERE table_name = 'month_subscriptions'").get())
+      .toEqual({ row_key: 'pulled' });
+    db.close();
+  });
   it('preserves supplied personal and shared UUIDs when their timestamps are missing', () => {
     const db = new DatabaseSync(':memory:');
     applyMigrations(db, 1, 20);

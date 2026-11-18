@@ -1,9 +1,9 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { Platform } from 'react-native';
 import { resolveCloudConfig } from '../config/cloud';
 import { getSyncState } from '../database/syncState';
 import { COMPLETE_ADAPTERS } from './serialize';
 import type { CoconutClient } from './supabase';
+import { getSyncDeviceName } from './device-name';
 
 function utf8ByteLength(value: string): number {
   let bytes = 0;
@@ -53,7 +53,7 @@ export async function reportSeedWorksUsage(
     p_app_slug: 'coconut',
     p_record_count: recordCount,
     p_byte_count: byteCount,
-    p_device_name: `Coconut (${Platform.OS})`,
+    p_device_name: getSyncDeviceName(),
   });
   if (error) throw error;
 }

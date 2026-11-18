@@ -107,6 +107,7 @@ const SYNC_TABLE_SPECS: Record<string, { spec: SyncTableSpec; addedIn: number }>
   reserve_transfers: { spec: { pk: 'id', identity: 'uuid' }, addedIn: 1 },
   yearly_subscriptions: { spec: { pk: 'id', identity: 'uuid' }, addedIn: 1 },
   month_budget_plan_events: { spec: { pk: 'id', identity: 'uuid' }, addedIn: 15 },
+  month_subscriptions: { spec: { pk: 'id', identity: 'uuid' }, addedIn: 21 },
 };
 
 /**
@@ -766,5 +767,22 @@ ALTER TABLE transactions ADD COLUMN rating_excluded INTEGER NOT NULL DEFAULT 0
     id: 20,
     description: 'Preserve supplied sync identities when filling missing timestamps',
     sql: identityPreservingTriggersSql(),
+  },
+  {
+    id: 21,
+    description: 'Sync saved monthly subscription charges',
+    sql: `
+ALTER TABLE month_subscriptions ADD COLUMN uuid TEXT;
+ALTER TABLE month_subscriptions ADD COLUMN updated_at TEXT;
+UPDATE month_subscriptions
+   SET uuid = lower(hex(randomblob(16))),
+       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');
+CREATE UNIQUE INDEX idx_month_subscriptions_uuid ON month_subscriptions (uuid);
+${buildSyncTriggersSql([['month_subscriptions', { pk: 'id', identity: 'uuid' }]], true)}
+INSERT INTO sync_outbox (table_name, row_key)
+SELECT 'month_subscriptions', uuid FROM month_subscriptions
+ WHERE uuid IS NOT NULL
+ON CONFLICT (table_name, row_key) DO NOTHING;
+`,
   },
 ];

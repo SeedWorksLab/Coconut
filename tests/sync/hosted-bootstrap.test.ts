@@ -21,6 +21,9 @@ jest.mock('../../src/sync/identity', () => ({ ensureSyncIdentity: jest.fn() }));
 jest.mock('../../src/sync/pull', () => ({ pullChanges: jest.fn() }));
 jest.mock('../../src/sync/shared', () => ({ pullSharedChanges: jest.fn() }));
 jest.mock('../../src/sync/supabase', () => ({ getClient: jest.fn() }));
+jest.mock('../../src/sync/usage-report', () => ({
+  reportSeedWorksUsage: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../../src/sync/engine', () => ({
   SHARED_LAST_SYNC_KEY: 'shared_last_sync_at',
   syncPersonalChanges: jest.fn(),

@@ -29,6 +29,7 @@ class FakeClient {
       'fixed_expenses',
       'budgets',
       'yearly_subscriptions',
+      'month_subscriptions',
       'month_fixed_expenses',
       'month_budgets',
       'month_budget_plan_events',
@@ -182,6 +183,56 @@ const SINCE = '2020-01-01T00:00:00.000Z';
 const UPDATED = '2026-09-18T10:00:00.000Z';
 
 describe('pullChanges', () => {
+  it('restores saved subscription charges using device-local subscription IDs', async () => {
+    const raw = freshDb();
+    raw.exec(`INSERT INTO yearly_subscriptions
+      (id, name, total_amount_cents, monthly_amount_cents, start_month, end_month)
+      VALUES (42, 'Unrelated local subscription', 12000, 1000, '2026-01', '2026-12')`);
+    const client = new FakeClient();
+    client.seed('months', {
+      uuid: 'month-1', month_key: '2026-09', allowance_cents: 50000,
+      starting_reserve_cents: 0, is_closed: true, updated_at: UPDATED,
+    });
+    client.seed('yearly_subscriptions', {
+      uuid: 'subscription-1', name: 'Music', total_amount_cents: 24000,
+      monthly_amount_cents: 2000, start_month: '2026-01', end_month: '2026-12',
+      deduct_monthly: true, active: true, sort_order: 0, updated_at: UPDATED,
+    });
+    client.seed('month_subscriptions', {
+      uuid: 'charge-1', month_key: '2026-09', subscription_uuid: 'subscription-1',
+      name: 'Music (original price)', amount_cents: 1500, updated_at: UPDATED,
+    });
+    await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
+    const parent = raw.prepare("SELECT id FROM yearly_subscriptions WHERE uuid = 'subscription-1'").get();
+    expect(raw.prepare('SELECT subscription_id, name, amount_cents FROM month_subscriptions').get())
+      .toEqual({ subscription_id: parent?.id, name: 'Music (original price)', amount_cents: 1500 });
+    expect(raw.prepare("SELECT * FROM sync_outbox WHERE table_name = 'month_subscriptions'").all()).toEqual([]);
+    await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
+    expect(raw.prepare('SELECT * FROM month_subscriptions').all()).toHaveLength(1);
+    raw.close();
+  });
+
+  it('keeps historical charges even when their subscription definition has been deleted', async () => {
+    const raw = freshDb();
+    const client = new FakeClient();
+    client.seed('months', {
+      uuid: 'month-1', month_key: '2026-09', allowance_cents: 50000,
+      starting_reserve_cents: 0, is_closed: true, updated_at: UPDATED,
+    });
+    client.seed('month_subscriptions', {
+      uuid: 'charge-1', month_key: '2026-09', subscription_uuid: 'deleted-subscription',
+      name: 'Old subscription', amount_cents: 1500, updated_at: UPDATED,
+    });
+    await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
+    expect(raw.prepare('SELECT subscription_id, amount_cents FROM month_subscriptions').get())
+      .toEqual({ subscription_id: null, amount_cents: 1500 });
+    client.seed('sync_tombstones', {
+      table_name: 'month_subscriptions', row_key: 'charge-1', deleted_at: UPDATED,
+    });
+    await pullChanges(client as never, makeDbApi(raw) as never, SINCE);
+    expect(raw.prepare('SELECT * FROM month_subscriptions').all()).toEqual([]);
+    raw.close();
+  });
   it('does not apply a monthly allocation with a missing required budget as NULL', async () => {
     const raw = freshDb();
     raw.exec("INSERT INTO months (month_key, allowance_cents, starting_reserve_cents) VALUES ('2026-09', 50000, 0)");

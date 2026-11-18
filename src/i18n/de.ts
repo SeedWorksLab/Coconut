@@ -1,6 +1,10 @@
 import type { TranslationKey } from './en';
 
 export const de: Partial<Record<TranslationKey, string>> = {
+  'whatsNew.loading': 'Versionshinweise werden geladen',
+  'whatsNew.offline': 'Aktualisierung fehlgeschlagen. Gespeicherte oder mitgelieferte Hinweise werden angezeigt.',
+  'whatsNew.empty': 'Für diese Version sind noch keine Versionshinweise veröffentlicht.',
+  'whatsNew.refresh': 'Versionshinweise aktualisieren',
   'common.add': 'Hinzufügen',
   'common.back': 'Zurück',
   'common.cancel': 'Abbrechen',

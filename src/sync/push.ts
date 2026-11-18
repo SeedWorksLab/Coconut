@@ -128,14 +128,16 @@ async function loadUuidMap(
 interface FkMaps {
   budgetUuidByBudgetId: Map<string, string>;
   fixedExpenseUuidByFixedExpenseId: Map<string, string>;
+  subscriptionUuidBySubscriptionId: Map<string, string>;
 }
 
 async function loadFkMaps(db: SQLiteDatabase): Promise<FkMaps> {
-  const [budgetUuidByBudgetId, fixedExpenseUuidByFixedExpenseId] = await Promise.all([
+  const [budgetUuidByBudgetId, fixedExpenseUuidByFixedExpenseId, subscriptionUuidBySubscriptionId] = await Promise.all([
     loadUuidMap(db, 'budget_id', 'budgets'),
     loadUuidMap(db, 'fixed_expense_id', 'fixed_expenses'),
+    loadUuidMap(db, 'subscription_id', 'yearly_subscriptions'),
   ]);
-  return { budgetUuidByBudgetId, fixedExpenseUuidByFixedExpenseId };
+  return { budgetUuidByBudgetId, fixedExpenseUuidByFixedExpenseId, subscriptionUuidBySubscriptionId };
 }
 
 function pushFkResolver(maps: FkMaps) {
@@ -148,6 +150,9 @@ function pushFkResolver(maps: FkMaps) {
     }
     if (localField === 'fixed_expense_id') {
       return maps.fixedExpenseUuidByFixedExpenseId.get(String(localValue)) ?? null;
+    }
+    if (localField === 'subscription_id') {
+      return maps.subscriptionUuidBySubscriptionId.get(String(localValue)) ?? null;
     }
     return null;
   };

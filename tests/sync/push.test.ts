@@ -27,6 +27,9 @@ interface PostgrestRow {
  * client reproduces that check.
  */
 const REMOTE_COLUMNS: Record<string, string[]> = {
+  month_subscriptions: [
+    'uuid', 'user_id', 'month_key', 'subscription_uuid', 'name', 'amount_cents', 'updated_at',
+  ],
   months: [
     'uuid',
     'user_id',
@@ -306,6 +309,28 @@ function insertWithSuppressedTriggers(db: DatabaseSync, sql: string): void {
 }
 
 describe('pushChanges full-sync seeding and healing', () => {
+  it.each([false, true])('uploads saved subscription charges with parent UUIDs (full=%s)', async (full) => {
+    const db = freshDb();
+    insertMonth(db, '2026-09');
+    db.exec(`INSERT INTO yearly_subscriptions
+      (id, name, total_amount_cents, monthly_amount_cents, start_month, end_month)
+      VALUES (42, 'Music', 24000, 2000, '2026-01', '2026-12');
+      INSERT INTO month_subscriptions (month_key, subscription_id, name, amount_cents)
+      VALUES ('2026-09', 42, 'Music (original price)', 1500);`);
+    const client = new FakeClient();
+    await pushChanges(client as never, makeDbApi(db) as never, full);
+    const parent = db.prepare('SELECT uuid FROM yearly_subscriptions WHERE id = 42').get();
+    expect([...client.tables.get('month_subscriptions')!.values()]).toEqual([
+      expect.objectContaining({
+        subscription_uuid: parent?.uuid, amount_cents: 1500, name: 'Music (original price)',
+      }),
+    ]);
+    expect(client.upsertLog.findIndex((entry) => entry.table === 'yearly_subscriptions'))
+      .toBeLessThan(client.upsertLog.findIndex((entry) => entry.table === 'month_subscriptions'));
+    expect(db.prepare("SELECT * FROM sync_outbox WHERE table_name = 'month_subscriptions'").all()).toEqual([]);
+    db.close();
+  });
+
   it.each([false, true])('continues past historical allocations of deleted budgets (full=%s)', async (full) => {
     const db = freshDb();
     db.exec('PRAGMA foreign_keys = OFF');
