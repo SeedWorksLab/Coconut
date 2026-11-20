@@ -78,3 +78,13 @@ test('slow requests time out and leave cached notes available', async () => {
     jest.useRealTimers();
   }
 });
+
+test('localized notes use the chosen language while the cache retains all original text', async () => {
+  const raw = payload('English notes');
+  raw[0].body += '\n<!-- seedworks:release-notes:de:start -->\nDeutsche Hinweise\n<!-- seedworks:release-notes:de:end -->';
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => raw });
+  const { result } = await renderHook(() => useReleaseNotes('Coconut', '1.3.0', 'de'));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.entries[0].notes).toBe('Deutsche Hinweise');
+  expect(writeCache).toHaveBeenCalledWith('Coconut', raw);
+});

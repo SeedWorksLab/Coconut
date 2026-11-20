@@ -10,6 +10,16 @@ const release = (version: string) => ({
   html_url: `https://github.com/SeedWorksLab/Coconut/releases/tag/v${version}`,
 });
 
+test('translations are selected without discarding English, with English fallback when unavailable', () => {
+  const body = marked('English notes') +
+    '\n<!-- seedworks:release-notes:de:start -->\nDeutsche Hinweise\n<!-- seedworks:release-notes:de:end -->';
+  expect(extractReleaseNotes(body)).toBe('English notes');
+  expect(extractReleaseNotes(body, 'de')).toBe('Deutsche Hinweise');
+  expect(extractReleaseNotes(body, 'hu')).toBe('English notes');
+  expect(normalizeReleaseNotes([{ ...release('1.3.0'), body }], 'Coconut', 'de')[0].notes)
+    .toBe('Deutsche Hinweise');
+});
+
 test('only marked content is extracted; malformed or duplicate markers are rejected', () => {
   expect(extractReleaseNotes(marked('### Fixed\n\n- A bug.'))).toBe('### Fixed\n\n- A bug.');
   expect(extractReleaseNotes('## Release Notes\nNo markers')).toBe('');
@@ -33,6 +43,7 @@ test('semantic ordering, installed version cap and remote corrections override f
   const entries = normalizeReleaseNotes(['1.9.0', '1.10.0', '2.0.0', '1.2.0'].map(release), 'Coconut');
   expect(visibleNotes(entries, '1.10.0').map((entry) => entry.version)).toEqual(['1.10.0', '1.9.0', '1.2.0']);
   expect(visibleNotes(entries, '1.10.0-beta.1').map((entry) => entry.version)).toEqual(['1.9.0', '1.2.0']);
+  expect(visibleNotes(entries, '1.10.0+build-with-dashes')[0].version).toBe('1.10.0');
   expect(visibleNotes(entries, 'invalid')).toEqual([]);
   expect(compareStableVersions('v1.10.0', '1.9.9')).toBeGreaterThan(0);
   const fallback = [{ version: '1.2.0', releasedAt: '', notes: 'Old text' }];

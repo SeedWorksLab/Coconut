@@ -5,7 +5,7 @@ import {
   type PublishedNote, type ReleaseRepository,
 } from './release-notes';
 
-export function useReleaseNotes(repo: ReleaseRepository, currentVersion: string) {
+export function useReleaseNotes(repo: ReleaseRepository, currentVersion: string, language: 'en' | 'de' | 'hu' = 'en') {
   const [entries, setEntries] = useState<PublishedNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -17,7 +17,7 @@ export function useReleaseNotes(repo: ReleaseRepository, currentVersion: string)
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function load() {
       try {
-        const cached = normalizeReleaseNotes(await readReleaseNotesCache(repo), repo);
+        const cached = normalizeReleaseNotes(await readReleaseNotesCache(repo), repo, language);
         if (active) setEntries(visibleNotes(cached, currentVersion));
       } catch {
         // A corrupt or unavailable cache must not prevent a public-feed refresh.
@@ -27,7 +27,7 @@ export function useReleaseNotes(repo: ReleaseRepository, currentVersion: string)
       try {
         const payload = await fetchReleaseNotePayload(repo, controller.signal);
         if (!active) return;
-        setEntries(visibleNotes(normalizeReleaseNotes(payload, repo), currentVersion));
+        setEntries(visibleNotes(normalizeReleaseNotes(payload, repo, language), currentVersion));
         await writeReleaseNotesCache(repo, payload).catch(() => undefined);
       } catch {
         if (active) setFailed(true);
@@ -38,7 +38,7 @@ export function useReleaseNotes(repo: ReleaseRepository, currentVersion: string)
     }
     void load();
     return () => { active = false; controller.abort(); clearTimeout(timer); };
-  }, [repo, currentVersion, revision]);
+  }, [repo, currentVersion, revision, language]);
 
   function refresh() {
     setLoading(true);

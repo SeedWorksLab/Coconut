@@ -16,7 +16,7 @@ export default function WhatsNewScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const { t, language } = useI18n();
-  const feed = useReleaseNotes('Coconut', releaseInfo.version);
+  const feed = useReleaseNotes('Coconut', releaseInfo.version, language);
   const entries = mergeReleaseNotes(feed.entries, whatsNewByLanguage[language].map((entry) => ({
     version: entry.version,
     releasedAt: entry.releasedAt,

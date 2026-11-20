@@ -6,12 +6,14 @@ export interface PublishedNote {
   notes: string;
 }
 
-const START = '<!-- seedworks:release-notes:start -->';
-const END = '<!-- seedworks:release-notes:end -->';
 const VERSION = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
-export function extractReleaseNotes(body: unknown): string {
+export function extractReleaseNotes(body: unknown, language: 'en' | 'de' | 'hu' = 'en'): string {
   if (typeof body !== 'string' || body.length > 60000) return '';
+  const suffix = language === 'en' ? '' : `:${language}`;
+  const START = `<!-- seedworks:release-notes${suffix}:start -->`;
+  const END = `<!-- seedworks:release-notes${suffix}:end -->`;
+  if (language !== 'en' && !body.includes(START)) return extractReleaseNotes(body);
   const start = body.indexOf(START);
   const end = body.indexOf(END);
   if (start < 0 || end < start + START.length ||
@@ -38,11 +40,11 @@ export function visibleNotes(entries: PublishedNote[], currentVersion: string): 
   return entries.filter((entry) => {
     if (!VERSION.test(entry.version)) return false;
     const order = compareStableVersions(entry.version, base);
-    return order < 0 || (order === 0 && !currentVersion.includes('-'));
+    return order < 0 || (order === 0 && !currentVersion.split('+')[0].includes('-'));
   }).sort((a, b) => compareStableVersions(b.version, a.version));
 }
 
-export function normalizeReleaseNotes(payload: unknown, repo: ReleaseRepository): PublishedNote[] {
+export function normalizeReleaseNotes(payload: unknown, repo: ReleaseRepository, language: 'en' | 'de' | 'hu' = 'en'): PublishedNote[] {
   if (!Array.isArray(payload)) return [];
   const entries = new Map<string, PublishedNote>();
   for (const raw of payload.slice(0, 1000)) {
@@ -52,7 +54,7 @@ export function normalizeReleaseNotes(payload: unknown, repo: ReleaseRepository)
         typeof item.tag_name !== 'string' || !VERSION.test(item.tag_name) ||
         typeof item.published_at !== 'string' || !Number.isFinite(Date.parse(item.published_at)) ||
         item.html_url !== `https://github.com/SeedWorksLab/${repo}/releases/tag/${item.tag_name}`) continue;
-    const notes = extractReleaseNotes(item.body);
+    const notes = extractReleaseNotes(item.body, language);
     const version = item.tag_name.replace(/^v/, '');
     if (notes) entries.set(version, { version, releasedAt: item.published_at, notes });
   }

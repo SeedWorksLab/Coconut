@@ -1,0 +1,546 @@
+{
+  "schema": 1,
+  "source": "src/config/whats-new{,.de,.hu}.ts",
+  "languages": {
+    "en": [
+      {
+        "version": "1.3.0",
+        "releasedAt": "2026-11-16T00:00:00.000Z",
+        "intro": "More reliable sync, and Coconut is now available on the web.",
+        "features": [
+          "Fixed personal sync getting blocked by historical allocations of deleted budgets",
+          "Shared-expense personal mirrors are reconciled even when a personal upload fails",
+          "Use Coconut in your browser at https://seedworkslab.github.io/apps/coconut/web"
+        ]
+      },
+      {
+        "version": "1.2.3",
+        "releasedAt": "2026-11-12T00:00:00.000Z",
+        "intro": "More control over your data, your first launch, and the way Coconut stays up to date.",
+        "features": [
+          "Pull down on the Transactions screen to fetch your latest personal transactions from the cloud when sync is enabled",
+          "On your first launch, sign in to an existing account and restore your data before taking the tutorial",
+          "Your language choice now syncs across devices connected to your cloud account",
+          "Android can download a release APK and hand it to the installer; the Linux desktop app can download and install an AppImage update",
+          "Ignore a purchase during month closing to leave it out of spending-quality charts without changing spending totals",
+          "The home screen shows what percentage of the combined flexible-budget plan has been spent",
+          "Reliability audit: desktop update checks respect your preference, unavailable updates are not downloaded, invalid local file paths are rejected, and a vulnerable tooling dependency is patched"
+        ]
+      },
+      {
+        "version": "1.2.0",
+        "releasedAt": "2026-10-29T00:00:00.000Z",
+        "intro": "Coconut now has a desktop home. The same private, offline-first budget runs as a Linux desktop app, and closing a month finally gives you somewhere to say how it really went. A few small fixes keep startup and the month-end report in good shape along the way.",
+        "features": [
+          "Coconut is now available for desktop as a Linux AppImage, with the same local-first setup and the same no-account, no-network default as the Android app",
+          "Closing a month now includes a verdict and notes section — write down what went well, what went badly and why the month spent the way it did",
+          "The month verdict is saved with the month and shown in its month-end report, so the story behind the numbers stays with the numbers",
+          "Fixed the desktop app hanging on startup when its database and font assets were missing from the packaged build",
+          "Fixed a database update error that could stop the app from loading after updating",
+          "Month-end report labels and neutral values now stay readable in dark mode"
+        ]
+      },
+      {
+        "version": "1.1.1",
+        "releasedAt": "2026-10-08T00:00:00.000Z",
+        "intro": "This release is about numbers you can trust at the end of the day. Entering amounts in month planning stopped stumbling over itself, deleting a budget no longer leaves its spending in a corner where nothing adds up, and the overview finally keeps its projected month-end readable in dark mode. And statistics have been rebuilt around what you actually want to know: your rhythm, your averages and how useful your spending really was.",
+        "features": [
+          "Entering amounts on the month-planning screen is fixed — the app no longer latches onto half-finished numbers while you are still typing, and the amount formats itself cleanly the moment you move on",
+          "Deleting a budget no longer strands its spending between buckets — the current month’s transactions are released to \"no budget\", so a closed month always adds up again. Past months keep their records exactly as they were",
+          "The projected month-end on the overview is readable in dark mode again",
+          "A monthly spending chart now anchors the statistics page, with the median month marked right on it — so one exceptional month can no longer masquerade as your normal",
+          "Budget usage is now an average: every closed month compares what you spent against what you planned, and each budget comes back as a single honest number",
+          "A spending quality chart shades every closed month into regret, neutral and good — a picture of how useful your spending actually was",
+          "The savings reserve gets its own history too: a month-by-month chart of what you added to it and what you drew from it"
+        ]
+      },
+      {
+        "version": "1.1.0",
+        "releasedAt": "2026-09-30T00:00:00.000Z",
+        "intro": "Every month now has a beginning and an end, and both of them are yours. You start the month by planning it, you look back over it and judge what you actually spent, and closing it hands you a report that says how the plan and the reality really compared. A month is no longer something that quietly passes by — it is something you plan, review and settle.",
+        "features": [
+          "Starting a month is a single, deliberate screen: set the allowance, see the fixed expenses and subscriptions already committed, plan an amount for every budget, and say how much you mean to draw from your savings reserve",
+          "The plan is checked against what the month can actually afford, so you can never plan away money that is not there — and a draw from the reserve can never be more than the reserve holds",
+          "Coconut never invents a month: the app waits for you, and a month only ever comes into existence because you started it",
+          "Change your mind as often as you like — every adjustment to a budget or to the draw is recorded as a decision, so later you can see exactly how the plan was arrived at",
+          "Closing a month is a proper review: fixed expenses, subscriptions and every budget side by side, ending in a confirmation that says plainly that closing is final and cannot be undone",
+          "\"How useful was your spending?\" — look back over the month and mark each purchase a regret, neutral or good. Anything you never got around to counts as neutral, so a month can always be closed",
+          "Closing opens near the end of the month, and if that window passes Coconut settles the month for you — so a month is never left hanging open",
+          "The month-end report is fuller: every budget now shows what it started at and what you adjusted it to before closing, so a re-planned budget finally explains itself",
+          "The reserve draw is part of the report too — the draw you planned with and the draw you finished the month with, kept clearly apart from the money that actually moved at month end"
+        ]
+      },
+      {
+        "version": "1.0.3",
+        "releasedAt": "2026-09-25T00:00:00.000Z",
+        "intro": "The overview screen has been rebuilt around a single question: how are you doing compared to your own plan? Instead of judging you against your allowance, Coconut now measures you against what you decided to spend — so the numbers finally mean something to you. Two more fixes keep your history honest along the way.",
+        "features": [
+          "A slider on every individual budget, marking how far the month has progressed — so you can compare how much of the budget is spent against how much of the month is gone",
+          "The four main tiles are now Planned Spending, Available (your allowance plus one-off income), Actual Spent and Remaining — where remaining is your plan minus what you have spent so far, green while you are within the plan and red once you are over it",
+          "The savings reserve tile now shows the starting reserve, the planned draw, the draw so far — green while you are within it, even if it is negative, red once you are over — and the projected reserve at the end of the month",
+          "The \"Planned vs Available\" tile is gone: comparing your plan to your money is what the new tiles do, better",
+          "Subscription charges are now frozen into the month they were charged in, so editing a subscription no longer skews your older statistics",
+          "Deleting a fixed expense no longer deletes its past data, so your history and averages stay correct"
+        ]
+      },
+      {
+        "version": "1.0.2",
+        "releasedAt": "2026-09-23T00:00:00.000Z",
+        "intro": "This update is about fitting your life more precisely into the plan. Budgets are easier to read and to order, shared expenses finally land in your own budget, and yearly expenses march to the rhythm of your own calendar. There’s a healthy dose of polish too — a split helper that finishes the math for you, a keyboard that stops covering your fields, and budgets you can tap straight into.",
+        "features": [
+          "The \"Available\" amount on the overview screen no longer overflows out of its bubble — it fits neatly and stays readable",
+          "Fresh budget colors, picked to be much easier to tell apart at a glance",
+          "Budgets can now be reordered, and the new order is mirrored everywhere — overview, planning and transactions",
+          "Shared expenses now support notes and attachments, just like your personal transactions",
+          "A shared expense can be assigned to one of your personal budgets, so it shows up in your own planning automatically",
+          "Shared expenses stay inside the group’s period — you can no longer add entries dated outside of it",
+          "Yearly expenses follow a flexible time frame, so you decide when the year starts and ends",
+          "Subscriptions were retested end to end, and the rough edges that surfaced are fixed",
+          "\"Add rest\" for exact and percentage shares — one tap fills the last share for you automatically",
+          "The keyboard no longer overlays the fields you’re typing into — the screen scrolls up so you always see what you’re entering",
+          "Tap a budget on the overview to see every transaction assigned to it",
+          "When planning a budget you now see how much of your allowance remains after expected fixed expenses and your other budgets, in both the default and the current month"
+        ]
+      },
+      {
+        "version": "1.0.1",
+        "releasedAt": "2026-09-20T00:00:00.000Z",
+        "intro": "The first update since 1.0 is all about making shared spaces feel right. Shared data now stays current in the background and refreshes the moment you ask for it, and it’s finally easy to step away from a group you’re no longer part of. Along the way we cleared up a few confusing names and fixed a batch of annoyances in shared groups.",
+        "features": [
+          "A manual refresh for shared spaces — pull down on the shared screen and Coconut reaches out to the group and brings in the very latest expenses",
+          "Shared spaces now sync automatically when you open the app, so the latest changes from everyone else are already there before you start",
+          "\"Category\" is now simply \"budget\" on the transactions screen, matching what these things actually are",
+          "Income is now \"one-off income\" — a name that says exactly what it is: a one-time addition to what you have available this month",
+          "You can leave a shared space whenever you want, with one tap in the group menu — the group is handed over to the remaining members",
+          "Shared expenses can be deleted straight from their edit screen",
+          "The shared screen now only lists groups you’re actually a member of — no more ghosts of spaces you were removed from",
+          "The \"who paid\" selector on a shared expense now reliably highlights the person you picked",
+          "Every member’s expenses appear in a shared group now, not only the ones you added yourself",
+          "Personal transactions now mirror shared expenses correctly — when a shared amount changes, your own budget always keeps up"
+        ]
+      },
+      {
+        "version": "1.0.0",
+        "releasedAt": "2026-09-20T00:00:00.000Z",
+        "intro": "Coconut hits 1.0 with the biggest change since launch: optional, family-sized budgets. Sync your data to your own Supabase project so it survives across devices — or team up with other people in a shared space to track common expenses together. Everything stays local and private by default; your own backend is always opt-in.",
+        "features": [
+          "Optional Supabase syncing — point Coconut at your own Supabase project to back up your data and keep it in sync across Android and the desktop web build. Straight out of the box there is no network: off stays fully offline.",
+          "A sync engine that reconciles changes made on any device: edits, new rows and deletions flow in both directions automatically as soon as you are online.",
+          "Shared spaces — two or more people with accounts can track common expenses together, with member roles, email invites and period closing",
+          "Linked personal transactions — your share of a shared expense shows up automatically in your own budget, and stays in sync when the shared amount changes",
+          "Closing a shared period produces a report of balances and settled amounts for the whole group",
+          "Various bug fixes and stability improvements across the board"
+        ]
+      },
+      {
+        "version": "0.4.0",
+        "releasedAt": "2026-09-17T00:00:00.000Z",
+        "intro": "The final update in the 0.3 series. Coconut now writes a month-end summary report for every closed month, walks new users through a quick tutorial and lets you know when a new version is available. Along the way, budgets can be color-coded, transactions are grouped by day and you can browse back through earlier months.",
+        "features": [
+          "Month-end summary report — closing a month saves a detailed breakdown of fixed expenses, subscriptions, budgets and how the reserve changed",
+          "Option to view previous months on the transactions screen",
+          "An in-app tutorial that walks you through the app on first launch, replayable from Settings",
+          "Automatic new version notifications when a newer release is available",
+          "Transactions are grouped by date so it’s easy to see what was spent on a given day",
+          "Fixed the initial reserve setting so it actually updates the month’s starting balance",
+          "Assign a color to each flexible budget — transactions tagged with it get a matching icon"
+        ]
+      },
+      {
+        "version": "0.3.0",
+        "releasedAt": "2026-09-17T00:00:00.000Z",
+        "intro": "Additions across the board: yearly subscriptions and one-off income for more realistic planning, a reserve number that is finally intuitive, euro as the default currency, photo attachments on transactions and a more streamlined home screen.",
+        "features": [
+          "Yearly subscriptions — split once-a-year charges into a flat monthly amount, with an optional monthly deduction and a renewal-month reminder",
+          "One-off income — bonuses and other additions count toward what is available that month",
+          "The reserve adjustment now reads as positive when you save up money (green) and negative when you overspend (red)",
+          "Default currency switched to euro (€)",
+          "Optional photo attachment on every transaction",
+          "A streamlined overview screen with a cleaner structure"
+        ]
+      },
+      {
+        "version": "0.2.0",
+        "releasedAt": "2026-09-16T00:00:00.000Z",
+        "features": [
+          "Fixed restoring backups — importing works again",
+          "UI fixes and consistency improvements",
+          "A reformatted About page",
+          "A new What’s New section",
+          "Animations and a dark theme overhaul"
+        ]
+      },
+      {
+        "version": "0.1.31",
+        "releasedAt": "2026-09-16T09:31:35.555Z",
+        "intro": "The first public build of Coconut, a private, offline-first budget app. Each month it compares your allowance against planned fixed expenses and flexible budgets, and it tracks a savings reserve. Everything stays on this device only — no network, no account, no tracking.",
+        "features": [
+          "Base setup: monthly allowance, fixed expenses, flexible budgets and a savings reserve",
+          "A new theming engine",
+          "Show the last X transactions on the home screen",
+          "An info section in Settings"
+        ]
+      }
+    ],
+    "hu": [
+      {
+        "version": "1.3.0",
+        "releasedAt": "2026-11-16T00:00:00.000Z",
+        "intro": "Megbízhatóbb szinkronizálás, és a Coconut mostantól a weben is elérhető.",
+        "features": [
+          "Javítva a személyes szinkronizálás elakadása a törölt költségvetések korábbi havi keretei miatt",
+          "A közös kiadások személyes másolatai akkor is frissülnek, ha egy személyes feltöltés sikertelen",
+          "Használd a Coconutot böngészőben: https://seedworkslab.github.io/apps/coconut/web"
+        ]
+      },
+      {
+        "version": "1.2.3",
+        "releasedAt": "2026-11-12T00:00:00.000Z",
+        "intro": "Több kontroll az adataid, az első indítás és a Coconut frissítései felett.",
+        "features": [
+          "Húzd le a Tranzakciók képernyőt, hogy bekapcsolt szinkronizálás mellett lekérd a legújabb személyes tranzakcióidat a felhőből",
+          "Az első indításkor bejelentkezhetsz meglévő fiókoddal, és visszaállíthatod az adataidat a bemutató előtt",
+          "A nyelvválasztásod mostantól szinkronizálódik a felhőfiókodhoz kapcsolódó eszközök között",
+          "Androidon letölthető a kiadás APK-ja, amelyet a telepítő nyit meg; a Linux asztali alkalmazás letöltheti és telepítheti az AppImage-frissítést",
+          "A hónap lezárásakor kihagyhatsz egy vásárlást a költésminőségi diagramokból anélkül, hogy a kiadások összesítése változna",
+          "A kezdőképernyő mutatja, hogy a rugalmas költségvetések összesített tervének hány százalékát költötted el",
+          "Megbízhatósági ellenőrzés: az asztali frissítéskeresés tiszteletben tartja a beállításodat, a nem elérhető frissítések nem töltődnek le, az érvénytelen helyi útvonalak elutasításra kerülnek, és frissült egy sérülékeny fejlesztői függőség"
+        ]
+      },
+      {
+        "version": "1.2.0",
+        "releasedAt": "2026-10-29T00:00:00.000Z",
+        "intro": "A Coconutnak most már asztali otthona is van. Ugyanaz a privát, offline-first költségvetés fut Linux asztali alkalmazásként, és a hónap lezárása végre helyet ad annak, hogy elmondd, hogyan is sikerült. Néhány apró javítás közben rendben tartja az indítást és a hónap végi jelentést.",
+        "features": [
+          "A Coconut mostantól Linux AppImage-ként elérhető asztali gépekre is, ugyanazzal a local-first felállással és ugyanazzal a fiók nélküli, hálózat nélküli alapértelmezéssel, mint az Android-alkalmazás",
+          "A hónap lezárása mostantól értékelést és jegyzetrészt is tartalmaz — írd le, mi ment jól, mi ment rosszul, és miért költött úgy a hónap, ahogy",
+          "A havi értékelés a hónappal együtt mentődik, és megjelenik a hónap végi jelentésben, így a számok mögötti történet a számoknál marad",
+          "Javítva az asztali alkalmazás indításkor történő lefagyása, amikor az adatbázis- és betűkészlet-eszközök hiányoztak a csomagolt buildből",
+          "Javítva egy adatbázis-frissítési hiba, amely frissítés után megakadályozhatta az alkalmazás betöltését",
+          "A hónap végi jelentés címkéi és semleges értékei sötét módban is olvashatók maradnak"
+        ]
+      },
+      {
+        "version": "1.1.1",
+        "releasedAt": "2026-10-08T00:00:00.000Z",
+        "intro": "Ez a kiadás a nap végén megbízható számokról szól. Az összegek bevitele a hónap tervezésénél már nem botlik meg saját magában, egy költségvetés törlése nem hagyja a költést olyan sarokban, ahol semmi nem jön ki, és az áttekintés végre sötét módban is olvashatóan tartja a várható hónap végi értéket. A statisztikák pedig arra épültek újra, amit valójában tudni akarsz: a ritmusodra, az átlagaidra és arra, mennyire volt hasznos a költésed.",
+        "features": [
+          "Javítva az összegek bevitele a hónap tervezése képernyőn — az alkalmazás már nem ragad rá a félkész számokra gépelés közben, és az összeg tisztán formázódik, amint továbblépsz",
+          "Egy költségvetés törlése már nem hagyja a költést a vödrök között — az aktuális hónap tranzakciói a „nincs költségvetés” állapotba kerülnek, így egy lezárt hónap mindig újra kijön. A korábbi hónapok pontosan úgy őrzik rekordjaikat, ahogy voltak",
+          "Az áttekintés várható hónap végi értéke ismét olvasható sötét módban",
+          "A statisztika oldalt mostantól havi költési diagram támasztja alá, a medián hónappal közvetlenül megjelölve rajta — így egy kivételes hónap nem tud többé a normális hónapodként maszkolni",
+          "A költségvetés-kihasználás mostantól átlag: minden lezárt hónap összeveti, mennyit költöttél a tervezetthez képest, és minden költségvetés egyetlen őszinte számként tér vissza",
+          "A költésminőség diagram minden lezárt hónapot megbánás, semleges és jó kategóriába árnyal — képet adva arról, mennyire volt hasznos a költésed",
+          "A megtakarítási tartaléknak saját előzménye is van: hónapról hónapra diagram arról, mennyit tettél hozzá és mennyit vettél ki belőle"
+        ]
+      },
+      {
+        "version": "1.1.0",
+        "releasedAt": "2026-09-30T00:00:00.000Z",
+        "intro": "Minden hónapnak mostantól van eleje és vége, és mindkettő a tiéd. Úgy indítod a hónapot, hogy megtervezed, visszatekintesz rá és megítéled, amit ténylegesen elköltöttél, a lezárás pedig jelentést ad arról, hogyan viszonyult a terv és a valóság. A hónap már nem valami, ami csendben elmúlik — hanem valami, amit megtervezel, átnézel és elszámolsz.",
+        "features": [
+          "A hónap indítása egyetlen, szándékos képernyő: állítsd be a keretet, látod a már lekötött fix költségeket és előfizetéseket, tervezz összeget minden költségvetéshez, és mondd meg, mennyit szándékozol kivenni a megtakarítási tartalékból",
+          "A tervet a hónap tényleges lehetőségeihez ellenőrzi, így soha nem tervezhetsz el nem létező pénzt — és a tartalékból való kivétel soha nem lehet több, mint amennyi a tartalékban van",
+          "A Coconut soha nem talál ki hónapot: az alkalmazás rád vár, és egy hónap csak azért jön létre, mert te elindítottad",
+          "Változtass, ahányszor csak akarsz — a költségvetés vagy a kivétel minden módosítása döntésként rögzítődik, így később pontosan látod, hogyan állt össze a terv",
+          "A hónap lezárása rendes áttekintés: fix költségek, előfizetések és minden költségvetés egymás mellett, végül egy megerősítés, amely világosan kimondja, hogy a lezárás végleges és nem vonható vissza",
+          "„Mennyire volt hasznos a költésed?” — tekints vissza a hónapra, és jelöld meg minden vásárlást megbánásként, semlegesként vagy jóként. Amit nem jelöltél meg, az semlegesnek számít, így egy hónap mindig lezárható",
+          "A lezárás a hónap vége felé nyílik meg, és ha ez az ablak elmúlik, a Coconut elrendezi a hónapot — így egy hónap sem marad nyitva",
+          "A hónap végi jelentés teljesebb: minden költségvetés mutatja, mivel indult és mire módosítottad a lezárás előtt, így egy újra tervezett költségvetés végre megmagyarázza magát",
+          "A tartalékkivétel is része a jelentésnek — a tervezett és a hónap végén ténylegesen megvalósult kivétel, világosan elkülönítve a hónap végén ténylegesen mozgott pénztől"
+        ]
+      },
+      {
+        "version": "1.0.3",
+        "releasedAt": "2026-09-25T00:00:00.000Z",
+        "intro": "Az áttekintés képernyő egyetlen kérdés köré épült újra: hogyan állsz a saját tervedhez képest? A Coconut mostantól nem a keretedhez mér, hanem ahhoz, amit elhatároztál elkölteni — így a számok végre jelentenek valamit. Közben két további javítás tartja őszintén az előzményeidet.",
+        "features": [
+          "Csúszka minden egyes költségvetésen, jelezve, mennyire haladt előre a hónap — így összevetheted, mennyi fogyott a költségvetésből és mennyi telt el a hónapból",
+          "A négy fő csempe mostantól Tervezett költés, Elérhető (a kereted plusz egyszeri bevétel), Tényleges költés és Maradék — a maradék a terved mínusz az eddig elköltött összeg, zöld, amíg a terven belül vagy, és piros, ha túllépted",
+          "A megtakarítási tartalék csempe mostantól mutatja az induló tartalékot, a tervezett kivételt, az eddigi kivételt — zöld, amíg belül vagy, még ha negatív is, piros, ha túllépted — és a hónap végi várható tartalékot",
+          "A „Tervezett vs. Elérhető” csempe megszűnt: a terved és a pénzed összevetését az új csempék jobban végzik",
+          "Az előfizetés-terhelések mostantól abba a hónapba fagynak be, amelyikben terhelték őket, így egy előfizetés szerkesztése már nem torzítja a korábbi statisztikáidat",
+          "Egy fix költség törlése már nem törli a múltbeli adatait, így az előzményeid és átlagaid helyesek maradnak"
+        ]
+      },
+      {
+        "version": "1.0.2",
+        "releasedAt": "2026-09-23T00:00:00.000Z",
+        "intro": "Ez a frissítés arról szól, hogy pontosabban illeszd az életed a tervbe. A költségvetések könnyebben olvashatók és rendezhetők, a közös kiadások végre bekerülnek a saját költségvetésedbe, az éves kiadások pedig a saját naptárad ritmusára járnak. Bőven van fényezés is — egy felosztássegítő, amely kiszámol helyetted, egy billentyűzet, amely nem takarja el a mezőket, és költségvetések, amelyekbe egy koppintással beléphetsz.",
+        "features": [
+          "Az áttekintés „Elérhető” összege már nem csordul ki a buborékjából — szépen illeszkedik és olvasható marad",
+          "Friss költségvetés-színek, amelyeket sokkal könnyebb első pillantásra megkülönböztetni",
+          "A költségvetések mostantól átrendezhetők, és az új sorrend mindenhol tükröződik — áttekintés, tervezés és tranzakciók",
+          "A közös kiadások mostantól támogatják a jegyzeteket és mellékleteket, csakúgy, mint a személyes tranzakcióid",
+          "Egy közös kiadás hozzárendelhető az egyik személyes költségvetésedhez, így automatikusan megjelenik a saját tervezésedben",
+          "A közös kiadások a csoport időszakán belül maradnak — már nem adhatsz hozzá azon kívülre datált bejegyzéseket",
+          "Az éves kiadások rugalmas időkeretet követnek, így te döntöd el, mikor kezdődik és ér véget az év",
+          "Az előfizetéseket végig újrateszteltük, és a felszínre került durva élek javítva",
+          "„Maradék hozzáadása” pontos és százalékos részesedésekhez — egy koppintás automatikusan kitölti az utolsó részesedést",
+          "A billentyűzet már nem takarja el a gépelt mezőket — a képernyő felgördül, hogy mindig lásd, mit írsz be",
+          "Koppints egy költségvetésre az áttekintésen, hogy lásd az összes hozzá rendelt tranzakciót",
+          "Egy költségvetés tervezésekor mostantól látod, mennyi marad a keretedből a várható fix költségek és a többi költségvetésed után, az alapértelmezett és az aktuális hónapban is"
+        ]
+      },
+      {
+        "version": "1.0.1",
+        "releasedAt": "2026-09-20T00:00:00.000Z",
+        "intro": "Az 1.0 utáni első frissítés arról szól, hogy a közös terek jól érezzék magukat. A közös adatok mostantól a háttérben is naprakészek, és frissülnek, amint kéred, egy csoportból pedig végre könnyű kilépni, ha már nem vagy tagja. Közben tisztáztunk néhány zavaró elnevezést, és kijavítottunk egy csomó bosszúságot a közös csoportokban.",
+        "features": [
+          "Kézi frissítés a közös terekhez — húzd le a közös képernyőt, és a Coconut eléri a csoportot, és behozza a legfrissebb kiadásokat",
+          "A közös terek mostantól automatikusan szinkronizálnak, amikor megnyitod az alkalmazást, így mindenki legfrissebb változásai már ott vannak, mielőtt elkezded",
+          "A „Kategória” mostantól egyszerűen „költségvetés” a tranzakciók képernyőn, ahogy ezek a dolgok valójában vannak",
+          "A bevétel mostantól „egyszeri bevétel” — olyan név, amely pontosan megmondja, mi: egyszeri hozzáadás az e havi elérhető összeghez",
+          "Bármikor kiléphetsz egy közös térből, egy koppintással a csoportmenüben — a csoport átkerül a maradó tagokhoz",
+          "A közös kiadások közvetlenül a szerkesztő képernyőjükről törölhetők",
+          "A közös képernyő mostantól csak azokat a csoportokat listázza, amelyeknek tényleg tagja vagy — nincs több kísértete azoknak a tereknek, amelyekből eltávolítottak",
+          "A közös kiadás „ki fizetett” választója mostantól megbízhatóan kiemeli a kiválasztott személyt",
+          "Egy közös csoportban mostantól minden tag kiadásai megjelennek, nem csak a sajátjaid",
+          "A személyes tranzakciók mostantól helyesen tükrözik a közös kiadásokat — amikor egy közös összeg változik, a saját költségvetésed mindig lépést tart"
+        ]
+      },
+      {
+        "version": "1.0.0",
+        "releasedAt": "2026-09-20T00:00:00.000Z",
+        "intro": "A Coconut eléri az 1.0-t az indulás óta a legnagyobb változással: opcionális, családméretű költségvetésekkel. Szinkronizáld az adataidat a saját Supabase-projektedbe, hogy megmaradjanak az eszközök között — vagy fogj össze másokkal egy közös térben, hogy együtt kövessétek a közös kiadásokat. Minden alapértelmezés szerint helyi és privát marad; a saját backend mindig opt-in.",
+        "features": [
+          "Opcionális Supabase-szinkron — irányítsd a Coconutot a saját Supabase-projektedre, hogy biztonsági mentést készítsen az adataidról, és szinkronban tartsa azokat Android és az asztali web build között. Dobozból kifelé nincs hálózat: kikapcsolva teljesen offline.",
+          "Egy szinkronmotor, amely összehangolja bármely eszközön tett változásokat: szerkesztések, új sorok és törlések automatikusan mindkét irányban áramlanak, amint online vagy.",
+          "Közös terek — két vagy több fiókkal rendelkező ember együtt követheti a közös kiadásokat, tagszerepekkel, e-mailes meghívókkal és időszaklezárással",
+          "Kapcsolt személyes tranzakciók — a közös kiadásból rád eső rész automatikusan megjelenik a saját költségvetésedben, és szinkronban marad, amikor a közös összeg változik",
+          "Egy közös időszak lezárása jelentést készít az egyenlegekről és az elszámolt összegekről az egész csoport számára",
+          "Különféle hibajavítások és stabilitási javítások minden területen"
+        ]
+      },
+      {
+        "version": "0.4.0",
+        "releasedAt": "2026-09-17T00:00:00.000Z",
+        "intro": "A 0.3-as sorozat utolsó frissítése. A Coconut mostantól hónap végi összefoglaló jelentést ír minden lezárt hónaphoz, gyors bemutatót tart az új felhasználóknak, és értesít, amikor új verzió érhető el. Közben a költségvetések színkódolhatók, a tranzakciók napok szerint csoportosulnak, és visszaböngészhetsz a korábbi hónapokban.",
+        "features": [
+          "Hónap végi összefoglaló jelentés — egy hónap lezárása részletes bontást ment a fix költségekről, előfizetésekről, költségvetésekről és arról, hogyan változott a tartalék",
+          "Lehetőség a korábbi hónapok megtekintésére a tranzakciók képernyőn",
+          "Alkalmazáson belüli bemutató, amely első indításkor végigvezet, és a Beállításokból újranézhető",
+          "Automatikus újverzió-értesítések, amikor újabb kiadás érhető el",
+          "A tranzakciók dátum szerint csoportosulnak, így könnyen látod, mit költöttél egy adott napon",
+          "Javítva a kezdeti tartalék beállítása, hogy tényleg frissítse a hónap kezdő egyenlegét",
+          "Szín rendelése minden rugalmas költségvetéshez — az ezzel megjelölt tranzakciók egyező ikont kapnak"
+        ]
+      },
+      {
+        "version": "0.3.0",
+        "releasedAt": "2026-09-17T00:00:00.000Z",
+        "intro": "Kiegészítések minden területen: éves előfizetések és egyszeri bevétel a valósághűbb tervezéshez, egy végre intuitív tartalékszám, euró alapértelmezett valutaként, fotómellékletek a tranzakciókon és letisztultabb kezdőképernyő.",
+        "features": [
+          "Éves előfizetések — az évente egyszeri terheléseket lapos havi összegre osztja, opcionális havi levonással és megújítási hónap emlékeztetővel",
+          "Egyszeri bevétel — a bónuszok és más kiegészítések beleszámítanak az adott hónapban elérhető összegbe",
+          "A tartalékkorrekció mostantól pozitívként jelenik meg, amikor félreteszel (zöld), és negatívként, amikor túlköltekezel (piros)",
+          "Az alapértelmezett valuta euróra (€) váltott",
+          "Opcionális fotómelléklet minden tranzakcióhoz",
+          "Letisztult áttekintés képernyő tisztább szerkezettel"
+        ]
+      },
+      {
+        "version": "0.2.0",
+        "releasedAt": "2026-09-16T00:00:00.000Z",
+        "features": [
+          "Javítva a biztonsági mentések visszaállítása — az importálás ismét működik",
+          "Felületi javítások és konzisztencia-javítások",
+          "Újraformázott Névjegy oldal",
+          "Új Újdonságok szakasz",
+          "Animációk és átdolgozott sötét téma"
+        ]
+      },
+      {
+        "version": "0.1.31",
+        "releasedAt": "2026-09-16T09:31:35.555Z",
+        "intro": "A Coconut első nyilvános buildje, egy privát, offline-first költségvetés-kezelő alkalmazás. Minden hónapban összeveti a keretedet a tervezett fix költségekkel és rugalmas költségvetésekkel, miközben nyilvántart egy megtakarítási tartalékot. Minden kizárólag ezen az eszközön marad — nincs hálózat, nincs fiók, nincs követés.",
+        "features": [
+          "Alapfelállás: havi keret, fix költségek, rugalmas költségvetések és megtakarítási tartalék",
+          "Új témamotor",
+          "Az utolsó X tranzakció megjelenítése a kezdőképernyőn",
+          "Információs szakasz a Beállításokban"
+        ]
+      }
+    ],
+    "de": [
+      {
+        "version": "1.3.0",
+        "releasedAt": "2026-11-16T00:00:00.000Z",
+        "intro": "Zuverlässigere Synchronisierung und Coconut jetzt auch im Web.",
+        "features": [
+          "Behoben: Historische Monatszuweisungen gelöschter Budgets blockierten die persönliche Synchronisierung",
+          "Persönliche Kopien gemeinsamer Ausgaben werden auch dann abgeglichen, wenn ein persönlicher Upload fehlschlägt",
+          "Nutze Coconut im Browser unter https://seedworkslab.github.io/apps/coconut/web"
+        ]
+      },
+      {
+        "version": "1.2.3",
+        "releasedAt": "2026-11-12T00:00:00.000Z",
+        "intro": "Mehr Kontrolle über deine Daten, den ersten Start und die Updates von Coconut.",
+        "features": [
+          "Ziehe die Transaktionsliste nach unten, um bei aktivierter Synchronisierung die neuesten persönlichen Transaktionen aus der Cloud abzurufen",
+          "Beim ersten Start kannst du dich mit einem bestehenden Konto anmelden und deine Daten wiederherstellen, bevor du die Einführung durchläufst",
+          "Deine Sprachauswahl wird jetzt zwischen Geräten synchronisiert, die mit deinem Cloud-Konto verbunden sind",
+          "Android kann die APK einer Veröffentlichung herunterladen und dem Installationsprogramm übergeben; die Linux-Desktop-App kann AppImage-Updates herunterladen und installieren",
+          "Ignoriere einen Einkauf beim Monatsabschluss, um ihn aus Diagrammen zur Ausgabenqualität auszuschließen, ohne die Ausgabensummen zu ändern",
+          "Die Übersicht zeigt, wie viel Prozent des gesamten Plans für flexible Kategorien ausgegeben wurden",
+          "Zuverlässigkeitsprüfung: Desktop-Updateprüfungen beachten deine Einstellung, nicht verfügbare Updates werden nicht heruntergeladen, ungültige lokale Pfade werden abgewiesen und eine anfällige Entwicklungsabhängigkeit wurde aktualisiert"
+        ]
+      },
+      {
+        "version": "1.2.0",
+        "releasedAt": "2026-10-29T00:00:00.000Z",
+        "intro": "Coconut hat jetzt ein Zuhause auf dem Desktop. Dasselbe private, offline-first Budget läuft als Linux-Desktop-App, und das Abschließen eines Monats gibt dir endlich einen Ort, um festzuhalten, wie es wirklich gelaufen ist. Ein paar kleine Korrekturen halten unterwegs den Start und den Monatsbericht in Form.",
+        "features": [
+          "Coconut ist jetzt als Linux-AppImage für den Desktop verfügbar, mit demselben local-first Ansatz und demselben konto- und netzwerkfreien Standard wie die Android-App",
+          "Das Abschließen eines Monats enthält jetzt ein Urteil und einen Notizbereich — halte fest, was gut lief, was schlecht lief und warum der Monat so ausgegeben wurde",
+          "Das Monatsurteil wird mit dem Monat gespeichert und im Monatsbericht angezeigt, sodass die Geschichte hinter den Zahlen bei den Zahlen bleibt",
+          "Behoben: Die Desktop-App hing beim Start, wenn Datenbank- und Schrift-Assets im paketierten Build fehlten",
+          "Behoben: Ein Datenbank-Updatefehler konnte das Laden der App nach einem Update verhindern",
+          "Beschriftungen und neutrale Werte im Monatsbericht bleiben im Dunkelmodus lesbar"
+        ]
+      },
+      {
+        "version": "1.1.1",
+        "releasedAt": "2026-10-08T00:00:00.000Z",
+        "intro": "Diese Version dreht sich um Zahlen, denen du am Ende des Tages vertrauen kannst. Die Betragseingabe in der Monatsplanung stolpert nicht mehr über sich selbst, das Löschen einer Kategorie lässt seine Ausgaben nicht mehr in einer Ecke liegen, in der nichts zusammenpasst, und die Übersicht hält ihren prognostizierten Monatsendstand endlich auch im Dunkelmodus lesbar. Und die Statistiken wurden neu um das aufgebaut, was du wirklich wissen willst: deinen Rhythmus, deine Durchschnitte und wie nützlich deine Ausgaben wirklich waren.",
+        "features": [
+          "Die Betragseingabe in der Monatsplanung ist behoben — die App hängt sich nicht mehr an halbfertige Zahlen, während du noch tippst, und der Betrag formatiert sich sauber, sobald du weitermachst",
+          "Das Löschen einer Kategorie lässt ihre Ausgaben nicht mehr zwischen den Töpfen stranden — die Transaktionen des aktuellen Monats werden auf „keine Kategorie“ gesetzt, sodass ein abgeschlossener Monat immer wieder aufgeht. Vergangene Monate behalten ihre Aufzeichnungen genau so",
+          "Der prognostizierte Monatsendstand in der Übersicht ist im Dunkelmodus wieder lesbar",
+          "Ein monatliches Ausgabendiagramm verankert jetzt die Statistikseite, mit dem Medianmonat direkt darauf markiert — so kann sich ein außergewöhnlicher Monat nicht mehr als dein Normal ausgeben",
+          "Die Kategorienutzung ist jetzt ein Durchschnitt: Jeder abgeschlossene Monat vergleicht, was du ausgegeben hast, mit dem, was du geplant hast, und jede Kategorie kommt als eine einzige ehrliche Zahl zurück",
+          "Ein Diagramm der Ausgabenqualität schattiert jeden abgeschlossenen Monat in Bereut, Neutral und Gut — ein Bild davon, wie nützlich deine Ausgaben wirklich waren",
+          "Auch die Ersparnisse bekommen ihren eigenen Verlauf: ein Monat-für-Monat-Diagramm dessen, was du hinzugefügt und was du entnommen hast"
+        ]
+      },
+      {
+        "version": "1.1.0",
+        "releasedAt": "2026-09-30T00:00:00.000Z",
+        "intro": "Jeder Monat hat jetzt einen Anfang und ein Ende, und beide gehören dir. Du startest den Monat, indem du ihn planst, blickst darauf zurück und beurteilst, was du tatsächlich ausgegeben hast, und das Abschließen liefert dir einen Bericht darüber, wie Plan und Realität wirklich zusammenpassten. Ein Monat ist nicht länger etwas, das still vorbeizieht — er ist etwas, das du planst, prüfst und abschließt.",
+        "features": [
+          "Einen Monat zu starten ist ein einziger, bewusster Bildschirm: Lege das Budget fest, sieh die bereits gebundenen Fixkosten und Abonnements, plane einen Betrag für jede Kategorie und sage, wie viel du aus deinen Ersparnissen entnehmen willst",
+          "Der Plan wird gegen das geprüft, was der Monat tatsächlich verkraften kann, sodass du nie Geld einplanen kannst, das nicht da ist — und eine Entnahme aus den Ersparnissen kann nie größer sein als der Bestand",
+          "Coconut erfindet nie einen Monat: Die App wartet auf dich, und ein Monat entsteht nur, weil du ihn gestartet hast",
+          "Ändere deine Meinung so oft du willst — jede Anpassung an einer Kategorie oder an der Entnahme wird als Entscheidung erfasst, sodass du später genau siehst, wie der Plan zustande kam",
+          "Das Abschließen eines Monats ist eine richtige Rückschau: Fixkosten, Abonnements und jede Kategorie nebeneinander, endend mit einer Bestätigung, die klar sagt, dass das Abschließen endgültig ist und nicht rückgängig gemacht werden kann",
+          "„Wie nützlich waren deine Ausgaben?“ — Blicke über den Monat zurück und markiere jeden Einkauf als Bereut, Neutral oder Gut. Was du nie markiert hast, zählt als neutral, sodass ein Monat immer abgeschlossen werden kann",
+          "Das Abschließen öffnet gegen Monatsende, und wenn dieses Fenster verstreicht, regelt Coconut den Monat für dich — so bleibt kein Monat offen hängen",
+          "Der Monatsbericht ist vollständiger: Jede Kategorie zeigt jetzt, womit sie begonnen hat und worauf du sie vor dem Abschließen angepasst hast, sodass sich eine neu geplante Kategorie endlich erklärt",
+          "Auch die Entnahme aus den Ersparnissen ist Teil des Berichts — die geplante und die zum Monatsende tatsächliche Entnahme, klar getrennt vom Geld, das sich am Monatsende wirklich bewegt hat"
+        ]
+      },
+      {
+        "version": "1.0.3",
+        "releasedAt": "2026-09-25T00:00:00.000Z",
+        "intro": "Die Übersicht wurde um eine einzige Frage herum neu aufgebaut: Wie stehst du im Vergleich zu deinem eigenen Plan da? Statt dich an deinem Budget zu messen, misst Coconut dich jetzt an dem, was du ausgeben wolltest — so bedeuten die Zahlen endlich etwas für dich. Zwei weitere Korrekturen halten unterwegs deinen Verlauf ehrlich.",
+        "features": [
+          "Ein Schieberegler an jeder einzelnen Kategorie, der zeigt, wie weit der Monat fortgeschritten ist — so kannst du vergleichen, wie viel der Kategorie ausgegeben und wie viel des Monats vergangen ist",
+          "Die vier Hauptkacheln heißen jetzt Geplante Ausgaben, Verfügbar (dein Budget plus einmalige Einnahmen), Tatsächlich ausgegeben und Verbleibend — wobei Verbleibend dein Plan minus das bisher Ausgegebene ist, grün solange du im Plan bist und rot, sobald du darüber bist",
+          "Die Kachel für die Ersparnisse zeigt jetzt den Startbestand, die geplante Entnahme, die bisherige Entnahme — grün solange du darin bist, auch wenn sie negativ ist, rot sobald du darüber bist — und den prognostizierten Bestand am Monatsende",
+          "Die Kachel „Geplant vs. Verfügbar“ ist weg: Deinen Plan mit deinem Geld zu vergleichen, ist genau das, was die neuen Kacheln besser tun",
+          "Abonnement-Belastungen werden jetzt in dem Monat eingefroren, in dem sie belastet wurden, sodass die Bearbeitung eines Abonnements deine älteren Statistiken nicht mehr verzerrt",
+          "Das Löschen einer Fixkostenposition löscht nicht mehr ihre vergangenen Daten, sodass dein Verlauf und deine Durchschnitte korrekt bleiben"
+        ]
+      },
+      {
+        "version": "1.0.2",
+        "releasedAt": "2026-09-23T00:00:00.000Z",
+        "intro": "Dieses Update dreht sich darum, dein Leben genauer in den Plan zu bringen. Kategorien lassen sich leichter lesen und ordnen, geteilte Ausgaben landen endlich in deiner eigenen Kategorie, und jährliche Ausgaben folgen dem Rhythmus deines eigenen Kalenders. Dazu gibt es eine gesunde Portion Feinschliff — einen Aufteilungshilfer, der die Mathematik für dich erledigt, eine Tastatur, die deine Felder nicht mehr verdeckt, und Kategorien, in die du direkt hineintippen kannst.",
+        "features": [
+          "Der Betrag „Verfügbar“ in der Übersicht läuft nicht mehr aus seiner Blase heraus — er passt sauber hinein und bleibt lesbar",
+          "Neue Kategoriefarben, die sich auf einen Blick viel leichter unterscheiden lassen",
+          "Kategorien lassen sich jetzt neu anordnen, und die neue Reihenfolge spiegelt sich überall wider — Übersicht, Planung und Transaktionen",
+          "Geteilte Ausgaben unterstützen jetzt Notizen und Anhänge, genau wie deine persönlichen Transaktionen",
+          "Eine geteilte Ausgabe kann einer deiner persönlichen Kategorien zugewiesen werden, sodass sie automatisch in deiner eigenen Planung erscheint",
+          "Geteilte Ausgaben bleiben innerhalb des Zeitraums der Gruppe — du kannst keine Einträge mehr außerhalb davon datieren",
+          "Jährliche Ausgaben folgen einem flexiblen Zeitrahmen, sodass du entscheidest, wann das Jahr beginnt und endet",
+          "Abonnements wurden durchgängig neu getestet, und die aufgetretenen rauen Kanten sind behoben",
+          "„Rest hinzufügen“ für exakte und prozentuale Anteile — ein Tipp füllt den letzten Anteil automatisch für dich",
+          "Die Tastatur überlagert nicht mehr die Felder, in die du tippst — der Bildschirm scrollt hoch, sodass du immer siehst, was du eingibst",
+          "Tippe in der Übersicht auf eine Kategorie, um jede ihr zugewiesene Transaktion zu sehen",
+          "Beim Planen einer Kategorie siehst du jetzt, wie viel deines Budgets nach erwarteten Fixkosten und deinen anderen Kategorien übrig bleibt, sowohl im Standard- als auch im aktuellen Monat"
+        ]
+      },
+      {
+        "version": "1.0.1",
+        "releasedAt": "2026-09-20T00:00:00.000Z",
+        "intro": "Das erste Update seit 1.0 dreht sich darum, dass sich geteilte Bereiche richtig anfühlen. Geteilte Daten bleiben jetzt im Hintergrund aktuell und aktualisieren sich, sobald du danach fragst, und es ist endlich einfach, eine Gruppe zu verlassen, zu der du nicht mehr gehörst. Unterwegs haben wir ein paar verwirrende Namen geklärt und eine Reihe von Ärgernissen in geteilten Gruppen behoben.",
+        "features": [
+          "Manuelles Aktualisieren für geteilte Bereiche — ziehe den geteilten Bildschirm herunter, und Coconut erreicht die Gruppe und holt die neuesten Ausgaben",
+          "Geteilte Bereiche synchronisieren jetzt automatisch beim Öffnen der App, sodass die neuesten Änderungen aller anderen schon da sind, bevor du beginnst",
+          "„Kategorie“ heißt auf dem Transaktionsbildschirm jetzt einfach „Kategorie“, passend zu dem, was diese Dinge tatsächlich sind",
+          "Einnahmen heißen jetzt „einmalige Einnahmen“ — ein Name, der genau sagt, was es ist: eine einmalige Ergänzung zu dem, was dir diesen Monat zur Verfügung steht",
+          "Du kannst einen geteilten Bereich jederzeit verlassen, mit einem Tipp im Gruppenmenü — die Gruppe wird an die verbleibenden Mitglieder übergeben",
+          "Geteilte Ausgaben können direkt von ihrem Bearbeitungsbildschirm gelöscht werden",
+          "Der geteilte Bildschirm listet jetzt nur Gruppen, in denen du tatsächlich Mitglied bist — keine Geister von Bereichen mehr, aus denen du entfernt wurdest",
+          "Die Auswahl „Wer hat bezahlt“ bei einer geteilten Ausgabe hebt jetzt zuverlässig die gewählte Person hervor",
+          "Die Ausgaben jedes Mitglieds erscheinen jetzt in einer geteilten Gruppe, nicht nur die, die du selbst hinzugefügt hast",
+          "Persönliche Transaktionen spiegeln geteilte Ausgaben jetzt korrekt — wenn sich ein geteilter Betrag ändert, hält dein eigenes Budget immer mit"
+        ]
+      },
+      {
+        "version": "1.0.0",
+        "releasedAt": "2026-09-20T00:00:00.000Z",
+        "intro": "Coconut erreicht 1.0 mit der größten Änderung seit dem Start: optionale, familientaugliche Budgets. Synchronisiere deine Daten mit deinem eigenen Supabase-Projekt, damit sie über Geräte hinweg erhalten bleiben — oder schließe dich mit anderen in einem geteilten Bereich zusammen, um gemeinsame Ausgaben zu verfolgen. Alles bleibt standardmäßig lokal und privat; dein eigenes Backend ist immer opt-in.",
+        "features": [
+          "Optionale Supabase-Synchronisierung — richte Coconut auf dein eigenes Supabase-Projekt, um deine Daten zu sichern und sie zwischen Android und dem Desktop-Web-Build synchron zu halten. Von Haus aus gibt es kein Netzwerk: Aus bleibt vollständig offline.",
+          "Eine Synchronisierungs-Engine, die auf jedem Gerät vorgenommene Änderungen abgleicht: Bearbeitungen, neue Zeilen und Löschungen fließen automatisch in beide Richtungen, sobald du online bist.",
+          "Geteilte Bereiche — zwei oder mehr Personen mit Konten können gemeinsame Ausgaben zusammen verfolgen, mit Mitgliederrollen, E-Mail-Einladungen und Zeitraumabschluss",
+          "Verknüpfte persönliche Transaktionen — dein Anteil an einer geteilten Ausgabe erscheint automatisch in deiner eigenen Kategorie und bleibt synchron, wenn sich der geteilte Betrag ändert",
+          "Das Abschließen eines geteilten Zeitraums erzeugt einen Bericht über Salden und ausgeglichene Beträge für die ganze Gruppe",
+          "Verschiedene Fehlerbehebungen und Stabilitätsverbesserungen in allen Bereichen"
+        ]
+      },
+      {
+        "version": "0.4.0",
+        "releasedAt": "2026-09-17T00:00:00.000Z",
+        "intro": "Das letzte Update der 0.3-Reihe. Coconut schreibt jetzt für jeden abgeschlossenen Monat einen Monatsendbericht, führt neue Nutzer durch eine kurze Einführung und meldet, wenn eine neue Version verfügbar ist. Unterwegs lassen sich Kategorien farblich kennzeichnen, Transaktionen werden nach Tagen gruppiert, und du kannst durch frühere Monate blättern.",
+        "features": [
+          "Monatsendbericht — das Abschließen eines Monats speichert eine detaillierte Aufschlüsselung von Fixkosten, Abonnements, Kategorien und der Veränderung der Ersparnisse",
+          "Option, frühere Monate auf dem Transaktionsbildschirm anzuzeigen",
+          "Eine In-App-Einführung, die dich beim ersten Start durch die App führt und in den Einstellungen erneut abgespielt werden kann",
+          "Automatische Benachrichtigungen über neue Versionen, wenn eine neuere Veröffentlichung verfügbar ist",
+          "Transaktionen werden nach Datum gruppiert, sodass leicht zu sehen ist, was an einem bestimmten Tag ausgegeben wurde",
+          "Behoben: Die Einstellung für die Anfangserparnisse aktualisiert jetzt tatsächlich den Startbestand des Monats",
+          "Weise jeder flexiblen Kategorie eine Farbe zu — entsprechend markierte Transaktionen erhalten ein passendes Symbol"
+        ]
+      },
+      {
+        "version": "0.3.0",
+        "releasedAt": "2026-09-17T00:00:00.000Z",
+        "intro": "Ergänzungen in allen Bereichen: jährliche Abonnements und einmalige Einnahmen für eine realistischere Planung, eine endlich intuitive Ersparniszahl, Euro als Standardwährung, Fotoanhänge an Transaktionen und ein aufgeräumterer Startbildschirm.",
+        "features": [
+          "Jährliche Abonnements — teile einmal jährlich anfallende Kosten in einen gleichmäßigen Monatsbetrag auf, mit optionalem monatlichem Abzug und Erinnerung im Verlängerungsmonat",
+          "Einmalige Einnahmen — Boni und andere Ergänzungen zählen zu dem, was in diesem Monat verfügbar ist",
+          "Die Ersparnisanpassung liest sich jetzt positiv, wenn du Geld zurücklegst (grün), und negativ, wenn du zu viel ausgibst (rot)",
+          "Standardwährung auf Euro (€) umgestellt",
+          "Optionaler Fotoanhang an jeder Transaktion",
+          "Ein aufgeräumter Übersichtsbildschirm mit klarerer Struktur"
+        ]
+      },
+      {
+        "version": "0.2.0",
+        "releasedAt": "2026-09-16T00:00:00.000Z",
+        "features": [
+          "Behoben: Wiederherstellen von Sicherungen — der Import funktioniert wieder",
+          "UI-Korrekturen und Konsistenzverbesserungen",
+          "Eine neu formatierte Über-Seite",
+          "Ein neuer Bereich „Neuigkeiten“",
+          "Animationen und eine überarbeitete dunkle Darstellung"
+        ]
+      },
+      {
+        "version": "0.1.31",
+        "releasedAt": "2026-09-16T09:31:35.555Z",
+        "intro": "Der erste öffentliche Build von Coconut, einer privaten, offline-first Budget-App. Jeden Monat vergleicht sie dein Budget mit geplanten Fixkosten und flexiblen Kategorien und führt eine Ersparnis. Alles bleibt nur auf diesem Gerät — kein Netzwerk, kein Konto, kein Tracking.",
+        "features": [
+          "Grundaufbau: monatliches Budget, Fixkosten, flexible Kategorien und eine Ersparnis",
+          "Eine neue Theming-Engine",
+          "Die letzten X Transaktionen auf dem Startbildschirm anzeigen",
+          "Ein Info-Bereich in den Einstellungen"
+        ]
+      }
+    ]
+  }
+}
