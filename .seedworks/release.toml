@@ -92,4 +92,4 @@ optional = true
 path = "build/coconut-web.zip"
 name = "coconut-web-{version}.zip"
 platform = "Web"
-purpose = "Static hosted web app for SeedWorks GitHub Pages; deploy through website review."
+purpose = "Static web app for coconut.seedworkslab.de; GitHub Actions deploys stable published releases to Coconut Pages."

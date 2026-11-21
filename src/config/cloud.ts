@@ -3,7 +3,7 @@ export const SEEDWORKS_CLOUD = {
   apiKey: 'sb_publishable_lnbWUY3g4K8rRbekIKR97g_Q0IKxA8L',
 } as const;
 
-export const SEEDWORKS_ACCOUNT_URL = 'https://seedworkslab.github.io/account.html';
+export const SEEDWORKS_ACCOUNT_URL = 'https://seedworkslab.de/account.html';
 
 export interface CloudConfigInput {
   supabaseUrl: string | null;

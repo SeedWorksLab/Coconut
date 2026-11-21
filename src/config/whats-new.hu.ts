@@ -8,7 +8,7 @@ export const whatsNewHu: WhatsNewEntry[] = [
     features: [
       'Javítva a személyes szinkronizálás elakadása a törölt költségvetések korábbi havi keretei miatt',
       'A közös kiadások személyes másolatai akkor is frissülnek, ha egy személyes feltöltés sikertelen',
-      'Használd a Coconutot böngészőben: https://seedworkslab.github.io/apps/coconut/web',
+      'Használd a Coconutot böngészőben: https://seedworkslab.de/apps/coconut/web',
     ],
   },
   {

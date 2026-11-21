@@ -10,7 +10,7 @@
         "features": [
           "Fixed personal sync getting blocked by historical allocations of deleted budgets",
           "Shared-expense personal mirrors are reconciled even when a personal upload fails",
-          "Use Coconut in your browser at https://seedworkslab.github.io/apps/coconut/web"
+          "Use Coconut in your browser at https://seedworkslab.de/apps/coconut/web"
         ]
       },
       {
@@ -190,7 +190,7 @@
         "features": [
           "Javítva a személyes szinkronizálás elakadása a törölt költségvetések korábbi havi keretei miatt",
           "A közös kiadások személyes másolatai akkor is frissülnek, ha egy személyes feltöltés sikertelen",
-          "Használd a Coconutot böngészőben: https://seedworkslab.github.io/apps/coconut/web"
+          "Használd a Coconutot böngészőben: https://seedworkslab.de/apps/coconut/web"
         ]
       },
       {
@@ -370,7 +370,7 @@
         "features": [
           "Behoben: Historische Monatszuweisungen gelöschter Budgets blockierten die persönliche Synchronisierung",
           "Persönliche Kopien gemeinsamer Ausgaben werden auch dann abgeglichen, wenn ein persönlicher Upload fehlschlägt",
-          "Nutze Coconut im Browser unter https://seedworkslab.github.io/apps/coconut/web"
+          "Nutze Coconut im Browser unter https://seedworkslab.de/apps/coconut/web"
         ]
       },
       {

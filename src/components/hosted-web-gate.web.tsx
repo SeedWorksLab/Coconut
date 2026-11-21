@@ -1,26 +1,13 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Button, PaperProvider, Text } from 'react-native-paper';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import { HOSTED_WEB } from '../config/hosted-web';
-import { SEEDWORKS_CLOUD } from '../config/cloud';
+import { SEEDWORKS_ACCOUNT_URL } from '../config/cloud';
 import { SEEDWORKS_AUTH_STORAGE_KEY } from '../sync/auth-storage';
 import { openHostedAccountCache } from '../sync/hosted-bootstrap';
-
-const ACCOUNT_URL = '/account.html';
-
-function createAccountClient(): SupabaseClient {
-  return createClient(SEEDWORKS_CLOUD.supabaseUrl, SEEDWORKS_CLOUD.apiKey, {
-    auth: {
-      storageKey: SEEDWORKS_AUTH_STORAGE_KEY,
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: false,
-      flowType: 'pkce',
-    },
-  });
-}
+import { getHostedAccountClient } from '../sync/hosted-account-client';
+import { completeHostedLogin, startHostedLogin, validateOAuthClaims } from '../sync/hosted-oauth.web';
 
 export function HostedWebGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<'checking' | 'signed-out' | 'loading' | 'ready' | 'error'>(
@@ -28,12 +15,15 @@ export function HostedWebGate({ children }: { children: ReactNode }) {
   );
   const [message, setMessage] = useState('');
   const [openedUserId, setOpenedUserId] = useState<string | null>(null);
-  const [client] = useState(() => HOSTED_WEB ? createAccountClient() : null);
+  const [client] = useState(() => HOSTED_WEB ? getHostedAccountClient() : null);
+  const checkInFlight = useRef<Promise<void> | null>(null);
 
-  const check = useCallback(async () => {
+  const checkAccount = useCallback(async () => {
     if (!client) return;
     setStatus('checking');
     try {
+      if (window.top !== window.self) throw new Error('Open Coconut directly, not inside another website.');
+      if (await completeHostedLogin(client)) return;
       const { data: { session } } = await client.auth.getSession();
       if (!session) {
         setStatus('signed-out');
@@ -48,6 +38,12 @@ export function HostedWebGate({ children }: { children: ReactNode }) {
           return;
         }
         user = verified.data.user;
+        if (window.location.hostname === 'coconut.seedworkslab.de') {
+          validateOAuthClaims(session.access_token);
+        }
+      } else if (!session.expires_at || session.expires_at * 1000 <= Date.now()) {
+        setStatus('signed-out');
+        return;
       }
       setOpenedUserId(user.id);
       setStatus('loading');
@@ -63,10 +59,44 @@ export function HostedWebGate({ children }: { children: ReactNode }) {
     }
   }, [client]);
 
+  const check = useCallback((): Promise<void> => {
+    if (checkInFlight.current) return checkInFlight.current;
+    const operation = checkAccount();
+    checkInFlight.current = operation;
+    void operation.finally(() => {
+      if (checkInFlight.current === operation) checkInFlight.current = null;
+    });
+    return operation;
+  }, [checkAccount]);
+
   useEffect(() => {
     if (!client) return;
     void Promise.resolve().then(check);
   }, [check, client]);
+
+  useEffect(() => {
+    if (!client) return;
+    const { data } = client.auth.onAuthStateChange((event, session) => {
+      if ((status === 'ready' || status === 'loading')
+        && (event === 'SIGNED_OUT' || (session && session.user.id !== openedUserId))) {
+        window.location.reload();
+      }
+    });
+    return () => data.subscription.unsubscribe();
+  }, [client, status, openedUserId]);
+
+  const signIn = async () => {
+    try {
+      if (window.location.hostname === 'seedworkslab.de') {
+        window.location.assign(SEEDWORKS_ACCOUNT_URL);
+      } else {
+        await startHostedLogin();
+      }
+    } catch {
+      setMessage('Could not start secure sign-in. Open https://coconut.seedworkslab.de and try again.');
+      setStatus('error');
+    }
+  };
 
   useEffect(() => {
     if (!client) return;
@@ -90,8 +120,12 @@ export function HostedWebGate({ children }: { children: ReactNode }) {
     window.addEventListener('storage', onStorage);
     const onFocus = () => {
       if (status === 'ready') {
-        void client.auth.getSession().then(({ data }) => {
+        void client.auth.getSession().then(async ({ data }) => {
           if (data.session?.user.id !== openedUserId) window.location.reload();
+          else if (navigator.onLine !== false) {
+            const verified = await client.auth.getUser();
+            if (verified.error || verified.data.user?.id !== openedUserId) window.location.reload();
+          }
         }).catch(() => window.location.reload());
       } else if (status !== 'loading') {
         void check();
@@ -123,8 +157,8 @@ export function HostedWebGate({ children }: { children: ReactNode }) {
         </Text>
         {status === 'signed-out' || status === 'error' ? (
           <>
-            <Button mode="contained" onPress={() => window.location.assign(ACCOUNT_URL)}>
-              Open Seed account
+            <Button mode="contained" onPress={() => void signIn()}>
+              Sign in with SeedWorks
             </Button>
             <Button onPress={() => void check()}>Try again</Button>
           </>

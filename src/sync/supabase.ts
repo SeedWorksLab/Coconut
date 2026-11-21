@@ -3,9 +3,11 @@ import 'react-native-url-polyfill/auto';
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 
 import { resolveCloudConfig } from '../config/cloud';
+import { HOSTED_WEB } from '../config/hosted-web';
 import { getDatabase } from '../database/database';
 import { getSyncState } from '../database/syncState';
 import { coconutAuthStorage, coconutAuthStorageKey } from './auth-storage';
+import { getHostedAccountClient } from './hosted-account-client';
 
 export type CoconutClient = SupabaseClient<any, any, 'coconut'>;
 
@@ -19,6 +21,8 @@ export class SyncAuthError extends Error {
 }
 
 export async function getClient(): Promise<CoconutClient> {
+  const hosted = getHostedAccountClient();
+  if (hosted) return hosted;
   if (!clientPromise) {
     clientPromise = (async () => {
       const db = await getDatabase();
@@ -87,7 +91,7 @@ export async function signInToSupabase(
 
 export async function signOutOfSupabase(): Promise<void> {
   const client = await getClient();
-  const { error } = await client.auth.signOut();
+  const { error } = await client.auth.signOut({ scope: HOSTED_WEB ? 'local' : 'global' });
   if (error) {
     throw new SyncAuthError(error.message);
   }

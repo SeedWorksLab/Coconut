@@ -715,7 +715,7 @@ export const de: Partial<Record<TranslationKey, string>> = {
   'sync.signIn': 'Anmelden',
   'sync.createAccount': 'Konto erstellen',
   'sync.customAuthHint': 'Dasselbe Konto im selben Supabase-Projekt ermöglicht deinen Geräten, Daten zu teilen. Die E-Mail-Bestätigung wird von den Auth-Einstellungen dieses Projekts gesteuert.',
-  'sync.seedworksAuthHint': 'Verwende dasselbe SeedWorks-Konto hier und unter seedworkslab.github.io/account.html. Vor der ersten Anmeldung ist eine E-Mail-Bestätigung erforderlich.',
+  'sync.seedworksAuthHint': 'Verwende dasselbe SeedWorks-Konto hier und unter seedworkslab.de/account.html. Vor der ersten Anmeldung ist eine E-Mail-Bestätigung erforderlich.',
   'sync.saveCustomFirst': 'Speichere dein eigenes Projekt, bevor du dich anmeldest.',
   'sync.manageAccount': 'Seed-Konto verwalten',
   'sync.usernameTitle': 'Benutzername (optional)',

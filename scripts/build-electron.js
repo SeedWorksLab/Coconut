@@ -16,7 +16,7 @@ function ensureDir(dir) {
 }
 
 // Build web export
-run('npx expo export --platform web');
+run('npm run export:web');
 
 // Build electron app for Linux
 run('npx electron-builder --linux --publish never');

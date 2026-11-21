@@ -1,8 +1,8 @@
 # Coconut
 
 <p align="center">
-  <a href="https://seedworkslab.github.io/apps/coconut/">
-    <img src="https://seedworkslab.github.io/assets/readme/download-coconut.svg" alt="Download Coconut" width="340">
+  <a href="https://seedworkslab.de/apps/coconut/">
+    <img src="https://seedworkslab.de/assets/readme/download-coconut.svg" alt="Download Coconut" width="340">
   </a>
 </p>
 
@@ -112,16 +112,30 @@ its data; never uninstall it or clear its storage to resolve a build problem.
 
 ## Hosted web build
 
-`npm run export:hosted-web` builds an account-required version for
-`https://seedworkslab.github.io/apps/coconut/web/` and creates
-`build/coconut-web.zip`. `npm run stage:hosted-web` copies the export to the
-separate website repository **only if it has no pending changes**; review and
-deploy that repository separately. `seed release coconut` builds the web
-archive alongside the existing Android and Electron artifacts, without
-changing their local-only/account-optional behavior.
+Use `npm run export:web` for the account-optional local web export; Electron
+uses the same command. It explicitly disables hosted mode and clears Metro's
+cached environment flags, so building a hosted ZIP first cannot change desktop
+login behavior.
 
-The hosted version shares the Seed account portal's browser session, but keeps
-an independent SQLite cache per signed-in user. First use requires an online
+`npm run export:hosted-web` builds an account-required version for
+`https://coconut.seedworkslab.de/` and creates `build/coconut-web.zip`, including
+root-relative assets, a deep-link `404.html`, `CNAME` and `.nojekyll`.
+`seed release coconut` builds this archive alongside Android and Electron.
+Publishing a stable GitHub release deploys its exact `coconut-web-<version>.zip`
+through `.github/workflows/deploy-web.yml` to Coconut's own GitHub Pages site.
+Drafts, prereleases and local-only builds do not deploy. No deployment branch,
+cross-repository push, personal token or website staging is needed.
+See [the domain setup guide](docs/hosted-web.md) before the first publication.
+
+The hosted version uses the same Seed account credentials, but its subdomain
+has a separate browser login session and SQLite cache per signed-in user.
+“Sign in with SeedWorks” uses central authorization at `seedworkslab.de` and
+authorization-code PKCE; an existing central session avoids entering a password
+again. App tokens refresh through Supabase's OAuth endpoint. There are no shared
+domain cookies or browser client secrets. Sign-out is local to Coconut; revoke
+app access from the central account page. Deploy the backend client-isolation
+migration before enabling this flow (see the setup guide).
+First use requires an online
 pull; later visits can use the cached dataset offline while their session remains valid. Signing out locks the
 interface, but GitHub Pages cannot erase or encrypt browser storage: do not
 use an untrusted or shared browser for sensitive financial data. Browser

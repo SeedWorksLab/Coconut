@@ -8,7 +8,7 @@ export const whatsNewDe: WhatsNewEntry[] = [
     features: [
       'Behoben: Historische Monatszuweisungen gelöschter Budgets blockierten die persönliche Synchronisierung',
       'Persönliche Kopien gemeinsamer Ausgaben werden auch dann abgeglichen, wenn ein persönlicher Upload fehlschlägt',
-      'Nutze Coconut im Browser unter https://seedworkslab.github.io/apps/coconut/web',
+      'Nutze Coconut im Browser unter https://seedworkslab.de/apps/coconut/web',
     ],
   },
   {

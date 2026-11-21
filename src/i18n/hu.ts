@@ -715,7 +715,7 @@ export const hu: Partial<Record<TranslationKey, string>> = {
   'sync.signIn': 'Bejelentkezés',
   'sync.createAccount': 'Fiók létrehozása',
   'sync.customAuthHint': 'Ugyanaz a fiók ugyanazon a Supabase-projekten lehetővé teszi az eszközök adatmegosztását. Az e-mail-megerősítést a projekt Auth-beállításai szabályozzák.',
-  'sync.seedworksAuthHint': 'Használd ugyanazt a SeedWorks-fiókot itt és a seedworkslab.github.io/account.html oldalon. Az első bejelentkezés előtt e-mail-megerősítés szükséges.',
+  'sync.seedworksAuthHint': 'Használd ugyanazt a SeedWorks-fiókot itt és a seedworkslab.de/account.html oldalon. Az első bejelentkezés előtt e-mail-megerősítés szükséges.',
   'sync.saveCustomFirst': 'Bejelentkezés előtt mentsd el az egyéni projektet.',
   'sync.manageAccount': 'Seed-fiók kezelése',
   'sync.usernameTitle': 'Felhasználónév (nem kötelező)',

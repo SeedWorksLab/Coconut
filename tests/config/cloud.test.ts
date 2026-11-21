@@ -1,7 +1,11 @@
-import { resolveCloudConfig, SEEDWORKS_CLOUD } from '../../src/config/cloud';
+import { resolveCloudConfig, SEEDWORKS_ACCOUNT_URL, SEEDWORKS_CLOUD } from '../../src/config/cloud';
 import { isValidApiKey, normalizeSupabaseUrl } from '../../src/services/sync-service';
 
 describe('SEEDWORKS_CLOUD', () => {
+  it('opens account management on the official custom domain', () => {
+    expect(SEEDWORKS_ACCOUNT_URL).toBe('https://seedworkslab.de/account.html');
+  });
+
   it('contains a valid public project URL and publishable key', () => {
     expect(normalizeSupabaseUrl(SEEDWORKS_CLOUD.supabaseUrl)).toBe(
       SEEDWORKS_CLOUD.supabaseUrl

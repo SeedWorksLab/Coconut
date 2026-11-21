@@ -29,12 +29,13 @@ const policy = [
   'upgrade-insecure-requests',
 ].join('; ');
 html = html.replace('<head>', `<head>\n    <meta name="robots" content="noindex">\n    <meta name="referrer" content="no-referrer">\n    <meta http-equiv="Content-Security-Policy" content="${policy}">`);
-html = html.replace('</head>', '  <script src="/assets/js/coconut-route-redirect.js"></script>\n  </head>');
-if (!html.includes('/apps/coconut/web/_expo/')) {
-  throw new Error('Hosted web export is missing its GitHub Pages asset prefix.');
+if (!html.includes('/_expo/') || html.includes('/apps/coconut/web/')) {
+  throw new Error('Hosted web export must use root-relative subdomain assets.');
 }
 fs.writeFileSync(htmlFile, html);
 fs.copyFileSync(htmlFile, path.join(output, '404.html'));
+fs.writeFileSync(path.join(output, 'CNAME'), 'coconut.seedworkslab.de\n');
+fs.writeFileSync(path.join(output, '.nojekyll'), '');
 fs.rmSync(archive, { force: true });
 const zipped = spawnSync('zip', ['-q', '-r', archive, '.'], { cwd: output, stdio: 'inherit' });
 if (zipped.status !== 0) process.exit(zipped.status || 1);

@@ -712,7 +712,7 @@ export const en = {
   'sync.signIn': 'Sign in',
   'sync.createAccount': 'Create account',
   'sync.customAuthHint': 'The same account on the same Supabase project lets your devices share data. Email confirmation is controlled by that project’s Auth settings.',
-  'sync.seedworksAuthHint': 'Use the same SeedWorks account here and at seedworkslab.github.io/account.html. Email confirmation is required before first sign-in.',
+  'sync.seedworksAuthHint': 'Use the same SeedWorks account here and at seedworkslab.de/account.html. Email confirmation is required before first sign-in.',
   'sync.saveCustomFirst': 'Save your custom project before signing in.',
   'sync.manageAccount': 'Manage Seed account',
   'sync.usernameTitle': 'Username (optional)',

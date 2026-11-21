@@ -56,7 +56,7 @@ describe('the what\u2019s new list', () => {
       expect(entries[0].version).toBe('1.3.0');
       expect(entries[0].releasedAt).toBe('2026-11-16T00:00:00.000Z');
       expect(entries[0].features.join(' ')).toContain(
-        'https://seedworkslab.github.io/apps/coconut/web'
+        'https://seedworkslab.de/apps/coconut/web'
       );
     }
   });

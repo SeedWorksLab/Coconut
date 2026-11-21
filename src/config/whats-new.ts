@@ -17,7 +17,7 @@ export const whatsNew: WhatsNewEntry[] = [
     features: [
       'Fixed personal sync getting blocked by historical allocations of deleted budgets',
       'Shared-expense personal mirrors are reconciled even when a personal upload fails',
-      'Use Coconut in your browser at https://seedworkslab.github.io/apps/coconut/web',
+      'Use Coconut in your browser at https://seedworkslab.de/apps/coconut/web',
     ],
   },
   {
