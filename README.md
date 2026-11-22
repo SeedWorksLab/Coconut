@@ -110,6 +110,16 @@ Use your own JDK 21 installation path on other systems. Android Studio's Gradle
 JDK setting should also point to JDK 21. Updating the installed app must preserve
 its data; never uninstall it or clear its storage to resolve a build problem.
 
+## Native dependency compatibility
+
+Worklets and Reanimated are pinned to the installed Expo SDK's supported
+versions, rather than accepting whichever optional peer versions npm selects.
+Run `npm run check:native-deps` after dependency changes; release builds also run
+this check before Android prebuild. When upgrading Expo, update these pins
+together with `expo/bundledNativeModules.json`'s recommendations and rebuild the
+native application, not just its JavaScript bundle. Test the release APK on an
+ARM64 phone as well as the emulator; emulator startup alone is not sufficient.
+
 ## Hosted web build
 
 Use `npm run export:web` for the account-optional local web export; Electron

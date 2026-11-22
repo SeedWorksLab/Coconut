@@ -35,6 +35,10 @@ android_ndk = "27.1.12297006"
 CI = "1"
 
 [[build.steps]]
+name = "Check Expo native animation compatibility"
+run = ["npm", "run", "check:native-deps"]
+
+[[build.steps]]
 name = "Generate native Android project"
 run = ["npx", "expo", "prebuild", "--platform", "android", "--no-install", "--clean"]
 

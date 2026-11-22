@@ -2,12 +2,14 @@ import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 import { getDatabaseName } from './database-name';
 import { MIGRATIONS, subscriptionRepairSql } from './migrations';
 import { recoverPullGuard } from './pull-guard-recovery';
+import { acquireDatabaseAccess, normalizeDatabaseOpenError } from './database-access';
 
 let dbPromise: Promise<SQLiteDatabase> | null = null;
 
 export function getDatabase(): Promise<SQLiteDatabase> {
   if (!dbPromise) {
-    dbPromise = openDatabaseAsync(getDatabaseName()).then(async (db) => {
+    const name = getDatabaseName();
+    dbPromise = acquireDatabaseAccess().then(() => openDatabaseAsync(name)).then(async (db) => {
       try {
         await db.execAsync('PRAGMA journal_mode = WAL;');
         await db.execAsync('PRAGMA recursive_triggers = OFF;');
@@ -18,6 +20,8 @@ export function getDatabase(): Promise<SQLiteDatabase> {
         await db.closeAsync().catch(() => undefined);
         throw error;
       }
+    }).catch((error: unknown) => {
+      throw normalizeDatabaseOpenError(error);
     });
     const pending = dbPromise;
     pending.catch(() => {

@@ -77,6 +77,13 @@ explicitly configure the corresponding trusted frontend/backend allowlists.
 
 ### Security and session semantics
 
+- Web SQLite supports one active Coconut tab/window per origin. A Web Lock is
+  acquired before opening SQLite and held for the entire page/worker lifetime,
+  including when an individual database connection closes. A second tab shows
+  a close-other-tabs message and can retry after the owner closes. An already
+  failed VFS initialization requires a reload; it is never repaired by deleting
+  browser data. This requires Web Locks in a current browser over HTTPS.
+
 - The PKCE verifier and random state live in the initiating tab's session storage.
   Callback transactions expire after ten minutes and are consumed once. Codes
   and errors are removed from history before token exchange.
@@ -97,6 +104,13 @@ explicitly configure the corresponding trusted frontend/backend allowlists.
 - The old same-origin build retains its existing session behavior during data
   migration. Tokens without a `client_id` retain legacy/native access; this
   migration isolates OAuth clients, not already-issued password sessions.
+
+For an isolated real-browser storage check, run
+`node tests/browser/database-access-smoke.mjs` from Coconut (requires installed
+Chrome, optionally selected with `CHROME_BIN`). It creates a temporary browser
+profile, reproduces OPFS handle contention, verifies tab ownership/retry and
+preservation of test data, then removes only that temporary profile. It never
+uses a real account, existing browser profile or emulator.
 
 ## Releases
 

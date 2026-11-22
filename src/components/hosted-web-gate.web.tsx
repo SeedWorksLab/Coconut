@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, useColorScheme } from 'react-native';
 import { Button, PaperProvider, Text } from 'react-native-paper';
 
 import { HOSTED_WEB } from '../config/hosted-web';
@@ -8,12 +8,17 @@ import { SEEDWORKS_AUTH_STORAGE_KEY } from '../sync/auth-storage';
 import { openHostedAccountCache } from '../sync/hosted-bootstrap';
 import { getHostedAccountClient } from '../sync/hosted-account-client';
 import { completeHostedLogin, startHostedLogin, validateOAuthClaims } from '../sync/hosted-oauth.web';
+import { darkTheme, lightTheme } from '../theme';
+import { BrowserDatabaseError } from '../database/database-access-error';
 
 export function HostedWebGate({ children }: { children: ReactNode }) {
+  const scheme = useColorScheme();
+  const gateTheme = scheme === 'dark' ? darkTheme : lightTheme;
   const [status, setStatus] = useState<'checking' | 'signed-out' | 'loading' | 'ready' | 'error'>(
     HOSTED_WEB ? 'checking' : 'ready'
   );
   const [message, setMessage] = useState('');
+  const [storageError, setStorageError] = useState<BrowserDatabaseError['kind'] | null>(null);
   const [openedUserId, setOpenedUserId] = useState<string | null>(null);
   const [client] = useState(() => HOSTED_WEB ? getHostedAccountClient() : null);
   const checkInFlight = useRef<Promise<void> | null>(null);
@@ -21,6 +26,7 @@ export function HostedWebGate({ children }: { children: ReactNode }) {
   const checkAccount = useCallback(async () => {
     if (!client) return;
     setStatus('checking');
+    setStorageError(null);
     try {
       if (window.top !== window.self) throw new Error('Open Coconut directly, not inside another website.');
       if (await completeHostedLogin(client)) return;
@@ -54,6 +60,7 @@ export function HostedWebGate({ children }: { children: ReactNode }) {
       }
       setStatus('ready');
     } catch (error) {
+      setStorageError(error instanceof BrowserDatabaseError ? error.kind : null);
       setMessage(error instanceof Error ? error.message : 'Could not open your account.');
       setStatus('error');
     }
@@ -145,10 +152,11 @@ export function HostedWebGate({ children }: { children: ReactNode }) {
 
   if (status === 'ready') return children;
   return (
-    <PaperProvider>
-      <View style={styles.container}>
-        <Text variant="headlineMedium">Coconut</Text>
-        <Text variant="bodyLarge">
+    <PaperProvider theme={gateTheme}>
+      <View testID="hosted-web-gate" style={[styles.container, { backgroundColor: gateTheme.colors.background }]}>
+        <Text variant="headlineMedium" style={{ color: gateTheme.colors.onBackground }}>Coconut</Text>
+        <Text variant="bodyLarge" accessibilityRole={status === 'error' ? 'alert' : undefined}
+          style={{ color: gateTheme.colors.onBackground }}>
           {status === 'signed-out'
             ? 'Sign in to your Seed account to open Coconut on the web.'
             : status === 'loading'
@@ -157,10 +165,16 @@ export function HostedWebGate({ children }: { children: ReactNode }) {
         </Text>
         {status === 'signed-out' || status === 'error' ? (
           <>
-            <Button mode="contained" onPress={() => void signIn()}>
-              Sign in with SeedWorks
-            </Button>
-            <Button onPress={() => void check()}>Try again</Button>
+            {!storageError ? (
+              <Button mode="contained" onPress={() => void signIn()}>
+                Sign in with SeedWorks
+              </Button>
+            ) : null}
+            {storageError === 'restart'
+              ? <Button mode="contained" onPress={() => window.location.reload()}>Reload Coconut</Button>
+              : storageError !== 'unsupported'
+                ? <Button onPress={() => void check()}>Try again</Button>
+                : null}
           </>
         ) : null}
       </View>
