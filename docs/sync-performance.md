@@ -5,8 +5,10 @@ interval is unchanged. No subscriptions or reporting start with sync disabled.
 
 - Up to four table downloads run concurrently. Rows still apply in dependency
   order; pages retain their existing stable ordering and 500-row limit.
-- Local apply uses 100-row transactions and reuses prepared statements. The
-  transaction body is synchronous, including on web: local edits cannot slip
+- Local apply uses 100-row transactions and reuses prepared statements. Native
+  transaction bodies remain synchronous. Web uses asynchronous SQLite and queues
+  local database operations during each apply transaction, so it works on GitHub
+  Pages without `SharedArrayBuffer` or isolation headers. Local edits cannot slip
   into a transaction while change capture is disabled. A busy local transaction
   aborts the sync attempt without rolling back the user's operation.
 - Historical nullable-FK repair runs once per cache and during full repair.
@@ -61,7 +63,8 @@ guarantees; browser and Android checks are still needed.
 For the actual Expo SQLite browser path, start Metro with
 `CI=1 npx expo start --offline --port 8098`, then run
 `node tests/browser/sync-batch-smoke.mjs`. This uses in-memory test tables in a
-new, disposable Chrome profile and checks rollback and guard restoration.
+new, disposable Chrome profile without isolation headers and checks rollback,
+guard restoration and queued local-edit capture.
 
 ## Verification (2026-11-23)
 
@@ -76,3 +79,17 @@ new, disposable Chrome profile and checks rollback and guard restoration.
   fixtures. Reapplying the publication migration also passed. No live cloud
   migration or real Realtime-delivery test was performed.
 - Android runtime verification is blocked: no device/emulator is connected.
+
+## GitHub Pages regression verification (2026-11-24)
+
+- 775 tests passed, including the existing personal/shared sync fixtures run
+  against the async web variants, plus queue/rollback transaction tests.
+- TypeScript, Expo lint and the production hosted web export passed.
+- Real Chrome without isolation headers or `SharedArrayBuffer`: 1,000 in-memory
+  rows imported; rollback, guard restoration, prepared statement reuse, and
+  queued local-edit capture passed. The async batched path took approximately
+  0.57 s versus 1.88 s for per-row async operations in this run; this is not a
+  cloud-sync latency guarantee.
+- No production account/login or deployment was exercised. Android runtime
+  verification remains unavailable because no device/emulator is connected;
+  the native synchronous sync implementation is unchanged.

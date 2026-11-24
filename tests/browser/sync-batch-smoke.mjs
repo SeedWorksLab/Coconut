@@ -9,11 +9,9 @@ import { createServer, request } from 'node:http';
 const metro = process.env.METRO_ORIGIN || 'http://127.0.0.1:8098';
 const profile = await mkdtemp('/tmp/opencode/coconut-sync-browser-');
 const server = createServer((req, res) => {
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   if (req.url === '/') {
     res.setHeader('Content-Type', 'text/html');
-    res.end('<!doctype html><title>Isolated sync benchmark</title><script src="/tests/browser/sync-batch-benchmark.bundle?platform=web&dev=true&hot=false&lazy=true"></script>');
+    res.end('<!doctype html><title>GitHub Pages sync regression</title><script src="/tests/browser/sync-batch-benchmark.bundle?platform=web&dev=true&hot=false&lazy=true"></script>');
     return;
   }
   const proxy = request(new URL(req.url, metro), (response) => {
@@ -80,6 +78,7 @@ try {
   assert.equal(measured.rollbackPreserved, true);
   assert.equal(measured.guardRestored, true);
   assert.equal(measured.localEditsCaptured, true);
+  assert.equal(measured.concurrentEditQueued, true);
   console.log(JSON.stringify(measured, null, 2));
 } finally {
   for (const callback of pending.values()) clearTimeout(callback.timer);

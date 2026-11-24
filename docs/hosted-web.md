@@ -128,6 +128,51 @@ Check the Actions run and `github-pages` environment after publication.
 To retry a failed deployment, rerun its Actions job. Publishing an older stable
 release also deploys its archive, so use that only as an intentional rollback.
 
+### Web-only repair of an existing release
+
+This intentionally replaces only a release's hosted web archive and its checksum.
+Android and desktop assets, versions and tags stay unchanged. Commit the repair
+and push it to the default branch first, including the manual Pages workflow
+trigger. Record the repair commit in the release description so the replacement
+archive's source is identifiable; do not move the existing release tag.
+
+For the 1.3.3 web repair, run from the repository root:
+
+```sh
+npm run export:hosted-web
+mkdir -p build/web-hotfix
+cp build/coconut-web.zip build/web-hotfix/coconut-web-1.3.3.zip
+gh release download v1.3.3 --pattern SHA256SUMS.txt --dir build/web-hotfix --clobber
+python3 - <<'PY'
+import hashlib
+from pathlib import Path
+
+directory = Path("build/web-hotfix")
+name = "coconut-web-1.3.3.zip"
+manifest = directory / "SHA256SUMS.txt"
+lines = manifest.read_text().splitlines()
+matches = [index for index, line in enumerate(lines) if line.endswith("  " + name)]
+if len(matches) != 1:
+    raise SystemExit("Expected exactly one existing web checksum; manifest not modified")
+lines[matches[0]] = hashlib.sha256((directory / name).read_bytes()).hexdigest() + "  " + name
+manifest.write_text("\n".join(lines) + "\n")
+PY
+gh release upload v1.3.3 build/web-hotfix/coconut-web-1.3.3.zip build/web-hotfix/SHA256SUMS.txt --clobber
+gh workflow run deploy-web.yml --ref master -f release_tag=v1.3.3
+```
+
+Use the actual default branch instead of `master` if different. Keep other release
+publishing/deployment operations paused while replacing the ZIP and manifest;
+the upload is not atomic. The deployment verifies the updated checksum and
+deploys only the web bundle. Replacing assets alone does not trigger deployment.
+Do not rerun the old release-triggered run: it retains its old workflow revision.
+The new manual run uses attempt-specific Pages artifact names, avoiding duplicate
+artifacts on retries.
+
+After deployment, test login and sync on `https://coconut.seedworkslab.de` and a
+normal reload in an existing session. Do not clear browser storage. No APK,
+AppImage, version bump or full release command is needed.
+
 Direct navigation and refresh on nested routes use the exported `404.html` as
 the SPA shell. GitHub Pages still returns HTTP 404 for those direct requests;
 the app router handles the original path. No marketing-site script is needed.

@@ -3,6 +3,7 @@ import { getDatabaseName } from './database-name';
 import { MIGRATIONS, subscriptionRepairSql } from './migrations';
 import { recoverPullGuard } from './pull-guard-recovery';
 import { acquireDatabaseAccess, normalizeDatabaseOpenError } from './database-access';
+import { coordinateDatabase } from './database-coordination';
 
 let dbPromise: Promise<SQLiteDatabase> | null = null;
 
@@ -15,7 +16,7 @@ export function getDatabase(): Promise<SQLiteDatabase> {
         await db.execAsync('PRAGMA recursive_triggers = OFF;');
         await migrate(db);
         await recoverPullGuard(db);
-        return db;
+        return coordinateDatabase(db);
       } catch (error) {
         await db.closeAsync().catch(() => undefined);
         throw error;
