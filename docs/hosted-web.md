@@ -135,13 +135,14 @@ the app router handles the original path. No marketing-site script is needed.
 ## Existing browser data
 
 `seedworkslab.de` and `coconut.seedworkslab.de` are different origins. Browser
-SQLite, local storage and auth sessions do not carry across. The website keeps
-the previous `/apps/coconut/web/` build available during migration rather than
-redirecting users away from their data. Before switching, users should check
-that all changes have synced, and export a backup where available. Sign in on
-the new subdomain and let its initial cloud pull complete; verify the data.
-Unsynced changes remain accessible only on the old origin. Do not clear that
-origin's storage or remove its build until migration has been verified.
+SQLite, local storage and auth sessions do not carry across. The previous
+`/apps/coconut/web/` build and the marketing site's legacy deep-link handler
+have been removed; the app is hosted only at `coconut.seedworkslab.de`.
+Old paths return the website 404. Sign in on the new subdomain and let its
+initial cloud pull complete; verify the data. Unsynced old-origin data does not
+move automatically and cannot be opened through the removed build. Removing
+the hosted files does not erase browser storage; do not clear old-origin storage
+if it may still contain unsynced data.
 
 ## Future apps
 

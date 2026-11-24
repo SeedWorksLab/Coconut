@@ -4,6 +4,21 @@ import { getSyncState } from '../database/syncState';
 import { COMPLETE_ADAPTERS } from './serialize';
 import type { CoconutClient } from './supabase';
 import { getSyncDeviceName } from './device-name';
+import { getMeta, setMeta } from '../database/syncMeta';
+
+const LAST_REPORT_KEY = 'seed_usage_report_at';
+const REPORT_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const scheduledReports = new WeakSet<SQLiteDatabase>();
+
+export function scheduleSeedWorksUsage(db: SQLiteDatabase, client: CoconutClient): void {
+  if (scheduledReports.has(db)) return;
+  scheduledReports.add(db);
+  setTimeout(() => {
+    void reportSeedWorksUsage(db, client)
+      .catch(() => undefined)
+      .finally(() => scheduledReports.delete(db));
+  }, 1000);
+}
 
 function utf8ByteLength(value: string): number {
   let bytes = 0;
@@ -22,7 +37,12 @@ export async function reportSeedWorksUsage(
   const state = await getSyncState(db);
   const cloud = resolveCloudConfig(state);
   // A custom Supabase project does not have SeedWorks' account registry/RPC.
-  if (cloud.isCustom) return;
+  if (!state.enabled || cloud.isCustom) return;
+  const lastReport = await getMeta(LAST_REPORT_KEY, db);
+  if (lastReport && Date.now() - Number(lastReport) < REPORT_INTERVAL_MS) return;
+  // Persist the attempt too: an unavailable portal must not cause a full scan
+  // on every edit. Financial sync never depends on this informational report.
+  await setMeta(LAST_REPORT_KEY, String(Date.now()), db);
 
   let recordCount = 0;
   let byteCount = 0;
@@ -49,6 +69,9 @@ export async function reportSeedWorksUsage(
       args: Record<string, string | number>
     ) => Promise<{ error: Error | null }>;
   };
+  const current = await getSyncState(db);
+  if (!current.enabled || resolveCloudConfig(current).supabaseUrl !== cloud.supabaseUrl ||
+    resolveCloudConfig(current).apiKey !== cloud.apiKey) return;
   const { error } = await publicClient.rpc('seed_report_app_usage', {
     p_app_slug: 'coconut',
     p_record_count: recordCount,

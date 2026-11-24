@@ -718,6 +718,7 @@ export const de: Partial<Record<TranslationKey, string>> = {
   'sync.seedworksAuthHint': 'Verwende dasselbe SeedWorks-Konto hier und unter seedworkslab.de/account.html. Vor der ersten Anmeldung ist eine E-Mail-Bestätigung erforderlich.',
   'sync.saveCustomFirst': 'Speichere dein eigenes Projekt, bevor du dich anmeldest.',
   'sync.manageAccount': 'Seed-Konto verwalten',
+  'sync.registerOnWebsite': 'Auf der SeedWorks-Website registrieren',
   'sync.usernameTitle': 'Benutzername (optional)',
   'sync.username': 'Benutzername',
   'sync.saveUsername': 'Benutzername speichern',

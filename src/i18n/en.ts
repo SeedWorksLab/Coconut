@@ -715,6 +715,7 @@ export const en = {
   'sync.seedworksAuthHint': 'Use the same SeedWorks account here and at seedworkslab.de/account.html. Email confirmation is required before first sign-in.',
   'sync.saveCustomFirst': 'Save your custom project before signing in.',
   'sync.manageAccount': 'Manage Seed account',
+  'sync.registerOnWebsite': 'Register on the SeedWorks website',
   'sync.usernameTitle': 'Username (optional)',
   'sync.username': 'Username',
   'sync.saveUsername': 'Save username',

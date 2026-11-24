@@ -3,6 +3,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { MIGRATIONS } from '../../src/database/migrations';
 import { pullChanges } from '../../src/sync/pull';
+import { sqliteBatchFixture } from './sqlite-batch-fixture';
 
 jest.mock('../../src/sync/supabase', () => ({
   getSupabaseUserId: jest.fn().mockResolvedValue('user-1'),
@@ -139,7 +140,7 @@ class FakeBuilder {
   }
 }
 
-interface TestDb {
+interface TestDb extends ReturnType<typeof sqliteBatchFixture> {
   getFirstAsync<T>(sql: string, params?: unknown[]): Promise<T | null>;
   getAllAsync<T>(sql: string, params?: unknown[]): Promise<T[]>;
   runAsync(sql: string, params?: unknown[]): Promise<unknown>;
@@ -150,6 +151,7 @@ type SqlParams = Parameters<ReturnType<DatabaseSync['prepare']>['get']>;
 
 function makeDbApi(raw: DatabaseSync): TestDb {
   return {
+    ...sqliteBatchFixture(raw),
     getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
       const row = raw.prepare(sql).get(...(params as SqlParams));
       return Promise.resolve((row as T | undefined) ?? null);
@@ -183,6 +185,17 @@ const SINCE = '2020-01-01T00:00:00.000Z';
 const UPDATED = '2026-09-18T10:00:00.000Z';
 
 describe('pullChanges', () => {
+  it('does not repeat historical nullable-FK scans on ordinary incremental pulls', async () => {
+    const raw = freshDb();
+    const db = makeDbApi(raw);
+    const client = new FakeClient();
+    await pullChanges(client as never, db as never, SINCE);
+    const reads = jest.spyOn(db, 'getAllAsync');
+    await pullChanges(client as never, db as never, '2026-10-01T00:00:00.000Z');
+    expect(reads.mock.calls.filter(([sql]) => sql.includes('IS NULL'))).toHaveLength(0);
+    raw.close();
+  });
+
   it('restores saved subscription charges using device-local subscription IDs', async () => {
     const raw = freshDb();
     raw.exec(`INSERT INTO yearly_subscriptions
@@ -344,6 +357,16 @@ describe('pullChanges', () => {
     expect(tx).toBeDefined();
     expect(tx.budget_id).toBeNull();
     expect(tx.merchant).toBe('Groceries');
+    client.seed('budgets', {
+      uuid: 'budget-vanished', name: 'Groceries', default_amount_cents: 10000,
+      active: true, sort_order: 0, updated_at: UPDATED,
+    });
+    // Both rows are older than the new watermark; the targeted retry must
+    // recover them without another historical scan or manual repair.
+    await pullChanges(client as never, makeDbApi(raw) as never, '2026-10-01T00:00:00.000Z');
+    const repaired = raw.prepare('SELECT budget_id FROM transactions WHERE uuid = ?')
+      .get('tx-ghost-budget');
+    expect(repaired?.budget_id).toBe(raw.prepare('SELECT id FROM budgets WHERE uuid = ?').get('budget-vanished')?.id);
   });
 
   it('skips a NOT NULL FK row whose parent uuid is missing locally', async () => {
@@ -374,6 +397,13 @@ describe('pullChanges', () => {
       raw.prepare('SELECT COUNT(*) AS n FROM month_fixed_expenses').get() as { n: number }
     ).n;
     expect(count).toBe(0);
+    client.seed('fixed_expenses', {
+      uuid: 'fixed-vanished', name: 'Rent', kind: 'fixed', recurrence: 'monthly',
+      expected_amount_cents: 100000, estimation_strategy: 'manual',
+      estimation_window: 3, active: true, sort_order: 0, updated_at: UPDATED,
+    });
+    await pullChanges(client as never, makeDbApi(raw) as never, '2026-10-01T00:00:00.000Z');
+    expect(raw.prepare('SELECT COUNT(*) AS n FROM month_fixed_expenses').get()?.n).toBe(1);
   });
 
   it('applies resolved children and keeps their FK ids in sync with pulled parents', async () => {

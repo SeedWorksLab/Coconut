@@ -11,6 +11,7 @@ import { MonthPlanningOverlay } from '../components/month-planning-overlay';
 import { I18nProvider, useI18n } from '../i18n';
 import { HostedWebGate } from '../components/hosted-web-gate';
 import { HostedWebSync } from '../components/hosted-web-sync';
+import { CloudChangeSync } from '../components/cloud-change-sync';
 import { HOSTED_WEB } from '../config/hosted-web';
 
 function ThemedContent() {
@@ -118,6 +119,7 @@ function ThemedContent() {
         <AutoOnboarding />
         <MonthPlanningOverlay />
         <HostedWebSync />
+        <CloudChangeSync />
       </PaperProvider>
     </ThemeProvider>
   );

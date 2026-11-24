@@ -6,6 +6,7 @@ import { pushSharedChanges, pullSharedChanges } from '../../src/sync/shared';
 import { SHARED_REMOTE_COLUMNS } from '../../src/sync/shared-serialize';
 import { deleteSharedSpace } from '../../src/database/sharedSpaces';
 import { reconcileSharedTransactions } from '../../src/database/sharedLinking';
+import { sqliteBatchFixture } from './sqlite-batch-fixture';
 
 interface PostgrestRow {
   [key: string]: unknown;
@@ -208,7 +209,7 @@ class FakeClient {
   }
 }
 
-interface TestDb {
+interface TestDb extends ReturnType<typeof sqliteBatchFixture> {
   getFirstAsync<T>(sql: string, params?: unknown[]): Promise<T | null>;
   getAllAsync<T>(sql: string, params?: unknown[]): Promise<T[]>;
   runAsync(sql: string, params?: unknown[]): Promise<unknown>;
@@ -219,6 +220,7 @@ type SqlParams = Parameters<ReturnType<DatabaseSync['prepare']>['get']>;
 
 function makeDbApi(raw: DatabaseSync): TestDb {
   return {
+    ...sqliteBatchFixture(raw),
     getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
       const row = raw.prepare(sql).get(...(params as SqlParams));
       return Promise.resolve((row as T | undefined) ?? null);
@@ -376,6 +378,20 @@ function seedRemote(client: FakeClient): void {
 }
 
 describe('pushSharedChanges', () => {
+  it('retains a brand-new shared row in the outbox when its first upload fails', async () => {
+    const raw = freshDb();
+    raw.exec("INSERT INTO shared_spaces (name, owner_user_id) VALUES ('Test', 'user-1')");
+    const client = new FakeClient();
+    const insert = jest.spyOn(FakeQuery.prototype, 'insert').mockRejectedValueOnce(new Error('Offline'));
+    await expect(pushSharedChanges(client as never, makeDbApi(raw) as never, 'user-1', { changesOnly: true }))
+      .rejects.toThrow('Offline');
+    expect(raw.prepare("SELECT COUNT(*) AS n FROM sync_outbox WHERE table_name = 'shared_spaces'").get()?.n).toBe(1);
+    insert.mockRestore();
+    await pushSharedChanges(client as never, makeDbApi(raw) as never, 'user-1', { changesOnly: true });
+    expect(client.rows('shared_spaces')).toHaveLength(1);
+    raw.close();
+  });
+
   it('uploads shared rows with foreign keys resolved to uuids', async () => {
     const raw = freshDb();
     seedSharedSpace(raw);
@@ -502,7 +518,7 @@ describe('pushSharedChanges', () => {
     raw.exec(`UPDATE shared_spaces SET name = 'Home renamed'`);
     await pushSharedChanges(client as never, makeDbApi(raw) as never, 'user-1');
 
-    expect(client.upsertLog).toHaveLength(7);
+    expect(client.upsertLog).toHaveLength(1);
     expect(client.upsertLog.find((entry) => entry.table === 'shared_spaces')?.row.owner_user_id).toBeUndefined();
     expect(client.insertLog).toHaveLength(7);
   });

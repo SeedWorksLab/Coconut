@@ -1,12 +1,14 @@
 import type { SQLiteDatabase, SQLiteBindValue } from 'expo-sqlite';
 
-import { withPullGuard } from '../database/syncMeta';
+import { applySyncBatch, type SyncApplyDatabase } from '../database/sync-batch';
+import { mapSyncDownloads, measureSyncPhase } from './performance';
 import { consolidateOpenPeriods } from '../database/sharedPeriods';
-import { decoupleSharedTransactions } from '../database/sharedLinking';
 import { SHARED_ADAPTERS } from './shared-serialize';
 import { isRemoteNewer, nowIso } from './time';
 import type { SyncTableAdapter } from './serialize';
 import type { CoconutClient } from './supabase';
+import { acknowledgeSyncRow } from '../database/sync-outbox';
+import { getMeta, setMeta } from '../database/syncMeta';
 
 const SHARED_EPOCH = '1970-01-01T00:00:00.000Z';
 const SHARED_PULL_PAGE_SIZE = 500;
@@ -250,10 +252,7 @@ async function pushSharedRow(
 ): Promise<void> {
   const localRow = await readLocalRow(db, adapter, entry.row_key);
   if (!localRow) {
-    await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
-      entry.table_name,
-      entry.row_key,
-    ]);
+    await acknowledgeSyncRow(db, adapter.localTable, adapter.identityColumn, entry.row_key, null);
     return;
   }
   const localUpdatedAt = (localRow.updated_at as string | null) ?? null;
@@ -265,11 +264,8 @@ async function pushSharedRow(
   if (error) {
     throw new Error(`Shared push lookup failed for ${adapter.remoteTable}: ${error.message}`);
   }
-  if (data && isRemoteNewer(localUpdatedAt, data.updated_at as string | null)) {
-    await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
-      entry.table_name,
-      entry.row_key,
-    ]);
+  if (data && !isRemoteNewer(data.updated_at as string | null, localUpdatedAt)) {
+    await acknowledgeSyncRow(db, adapter.localTable, adapter.identityColumn, entry.row_key, localRow);
     return;
   }
   if (!data) {
@@ -290,11 +286,8 @@ async function pushSharedRow(
         `Shared tombstone lookup failed for ${adapter.localTable}: ${tomb.error.message}`
       );
     }
-    await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
-      entry.table_name,
-      entry.row_key,
-    ]);
     if (tomb.data || !entry.tracked) {
+      await acknowledgeSyncRow(db, adapter.localTable, adapter.identityColumn, entry.row_key, localRow);
       return;
     }
   }
@@ -326,10 +319,7 @@ async function pushSharedRow(
   if (writeError) {
     throw new Error(`Shared push failed for ${adapter.remoteTable}: ${writeError.message}`);
   }
-  await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
-    entry.table_name,
-    entry.row_key,
-  ]);
+  await acknowledgeSyncRow(db, adapter.localTable, adapter.identityColumn, entry.row_key, localRow);
 }
 
 async function pushSharedTombstones(
@@ -408,7 +398,10 @@ export async function pushSharedChanges(
   userId: string,
   options: SharedPushOptions = {}
 ): Promise<SharedPushResult> {
-  await backfillSharedRows(db);
+  if (options.changesOnly !== true || !await getMeta('shared_fields_backfilled_v1', db)) {
+    await backfillSharedRows(db);
+    await setMeta('shared_fields_backfilled_v1', '1', db);
+  }
   await consolidateOpenPeriods(db);
   const maps = await loadPushFkMaps(db);
   const entriesByTable = await listPushEntries(db, options.changesOnly === true);
@@ -423,12 +416,12 @@ export async function pushSharedChanges(
   return { pushed, tombstones };
 }
 
-async function applySharedRemoteRow(
-  db: SQLiteDatabase,
+function applySharedRemoteRow(
+  db: SyncApplyDatabase,
   adapter: SyncTableAdapter,
   remote: Record<string, unknown>,
   maps: PullFkMaps
-): Promise<void> {
+): void {
   const uuid = (remote.uuid as string) ?? '';
   if (!uuid) {
     return;
@@ -440,7 +433,7 @@ async function applySharedRemoteRow(
   if (hasUnresolvedFk(adapter, remote, values)) {
     return;
   }
-  const existing = await db.getFirstAsync<{ id: number; updated_at: string | null }>(
+  const existing = db.getFirstSync<{ id: number; updated_at: string | null }>(
     `SELECT id, updated_at FROM ${adapter.localTable} WHERE uuid = ?`,
     [uuid]
   );
@@ -450,14 +443,14 @@ async function applySharedRemoteRow(
     }
     const columns = Object.keys(values);
     const sql = columns.map((col) => `${col} = ?`).join(', ');
-    await db.runAsync(`UPDATE ${adapter.localTable} SET ${sql} WHERE uuid = ?`, [
+    db.runSync(`UPDATE ${adapter.localTable} SET ${sql} WHERE uuid = ?`, [
       ...columns.map((col) => toBindValue(values[col])),
       uuid,
     ]);
     return;
   }
   const columns = Object.keys(values);
-  const result = await db.runAsync(
+  const result = db.runSync(
     `INSERT INTO ${adapter.localTable} (${columns.join(', ')}) VALUES (${columns
       .map(() => '?')
       .join(', ')})`,
@@ -466,15 +459,17 @@ async function applySharedRemoteRow(
   captureInsertedParent(maps, adapter, values, result.lastInsertRowId);
 }
 
-async function applySharedRemoteTombstones(
-  db: SQLiteDatabase,
+interface SharedRemoteTombstone {
+  table_name: string;
+  row_key: string;
+  deleted_at: string;
+}
+
+async function fetchSharedRemoteTombstones(
   client: CoconutClient,
-  since: string
-): Promise<{ tombstones: number; tombstonedKeys: Set<string> }> {
-  const adapterByTable = new Map(SHARED_ADAPTERS.map((adapter) => [adapter.localTable, adapter]));
-  let applied = 0;
+): Promise<SharedRemoteTombstone[]> {
+  const rows: SharedRemoteTombstone[] = [];
   let offset = 0;
-  const tombstonedKeys = new Set<string>();
   for (;;) {
     const { data, error } = await client
       .from('shared_sync_tombstones')
@@ -488,64 +483,47 @@ async function applySharedRemoteTombstones(
       throw new Error(`Shared tombstone pull failed: ${error.message}`);
     }
     const page = data ?? [];
-    for (const tomb of page) {
-      const adapter = adapterByTable.get(tomb.table_name as string);
-      if (!adapter) {
-        continue;
-      }
-      const key = `${tomb.table_name}:${tomb.row_key}`;
-      tombstonedKeys.add(key);
-      await db.runAsync(`DELETE FROM ${adapter.localTable} WHERE uuid = ?`, [tomb.row_key]);
-      await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
-        tomb.table_name,
-        tomb.row_key,
-      ]);
-      if ((tomb.deleted_at as string) > since) {
-        applied += 1;
-      }
-    }
+    rows.push(...page as SharedRemoteTombstone[]);
     if (page.length < SHARED_PULL_PAGE_SIZE) {
       break;
     }
     offset += SHARED_PULL_PAGE_SIZE;
   }
-  return { tombstones: applied, tombstonedKeys };
+  return rows;
 }
 
-async function expireRemovedSpaces(
-  db: SQLiteDatabase,
+function expireRemovedSpaces(
+  db: SyncApplyDatabase,
   remoteSpaceUuids: Set<string>
-): Promise<number> {
-  const locals = await db.getAllAsync<{ id: number; uuid: string }>(
-    'SELECT id, uuid FROM shared_spaces WHERE uuid IS NOT NULL'
+): number {
+  const locals = db.getAllSync<{ id: number; uuid: string }>(
+    `SELECT id, uuid FROM shared_spaces s WHERE uuid IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM sync_outbox o
+        WHERE o.table_name = 'shared_spaces' AND o.row_key = s.uuid)`
   );
   let removed = 0;
   for (const space of locals) {
     if (remoteSpaceUuids.has(space.uuid)) {
       continue;
     }
-    const expenseUuids = (
-      await db.getAllAsync<{ uuid: string | null }>(
-        'SELECT uuid FROM shared_expenses WHERE space_id = ? AND uuid IS NOT NULL',
-        [space.id]
-      )
-    ).map((row) => row.uuid as string);
-    await decoupleSharedTransactions(expenseUuids, db);
-    await db.runAsync(
+    db.runSync(`UPDATE transactions SET origin_type = NULL, origin_id = NULL
+      WHERE origin_type = 'shared' AND origin_id IN
+        (SELECT uuid FROM shared_expenses WHERE space_id = ? AND uuid IS NOT NULL)`, [space.id]);
+    db.runSync(
       `DELETE FROM shared_expense_splits
         WHERE expense_id IN (SELECT id FROM shared_expenses WHERE space_id = ?)`,
       [space.id]
     );
-    await db.runAsync('DELETE FROM shared_expenses WHERE space_id = ?', [space.id]);
-    await db.runAsync('DELETE FROM shared_period_reports WHERE space_id = ?', [space.id]);
-    await db.runAsync('DELETE FROM shared_periods WHERE space_id = ?', [space.id]);
-    await db.runAsync('DELETE FROM shared_space_members WHERE space_id = ?', [space.id]);
-    await db.runAsync('DELETE FROM shared_spaces WHERE id = ?', [space.id]);
+    db.runSync('DELETE FROM shared_expenses WHERE space_id = ?', [space.id]);
+    db.runSync('DELETE FROM shared_period_reports WHERE space_id = ?', [space.id]);
+    db.runSync('DELETE FROM shared_periods WHERE space_id = ?', [space.id]);
+    db.runSync('DELETE FROM shared_space_members WHERE space_id = ?', [space.id]);
+    db.runSync('DELETE FROM shared_spaces WHERE id = ?', [space.id]);
     removed += 1;
   }
   // Drop 'left' membership rows left behind after their space stopped being
   // visible (e.g. the removed user pulled their own row, then the space).
-  await db.runAsync(
+  db.runSync(
     `DELETE FROM shared_space_members
       WHERE status = 'left'
         AND NOT EXISTS (SELECT 1 FROM shared_spaces s WHERE s.id = shared_space_members.space_id)`
@@ -565,15 +543,12 @@ export async function pullSharedChanges(
   since?: string
 ): Promise<SharedPullResult> {
   const sinceValue = since ?? SHARED_EPOCH;
-  const maps = await loadPullFkMaps(db);
   let pulled = 0;
   let expired = 0;
   let tombstones = 0;
-  await withPullGuard(db, async () => {
-    const tombstoneResult = await applySharedRemoteTombstones(db, client, sinceValue);
-    tombstones = tombstoneResult.tombstones;
-    const remoteSpaceUuids = new Set<string>();
-    for (const adapter of SHARED_ADAPTERS) {
+  const { downloaded, deleted } = await measureSyncPhase('shared.download', async () => {
+    const downloaded = await mapSyncDownloads(SHARED_ADAPTERS, async (adapter) => {
+      const rows: Record<string, unknown>[] = [];
       let offset = 0;
       for (;;) {
         let query = client.from(adapter.remoteTable).select('*');
@@ -592,30 +567,63 @@ export async function pullSharedChanges(
           throw new Error(`Shared pull failed for ${adapter.remoteTable}: ${error.message}`);
         }
         const page = (data ?? []) as Record<string, unknown>[];
-        for (const remoteRow of page) {
-          // A tombstoned row wins over any nonetheless-surviving remote copy
-          // (e.g. a split that was replaced by an edit but re-inserted by another
-          // device's stale push): never import it, so the shared data converges
-          // on exactly the current set on every member.
-          if (tombstoneResult.tombstonedKeys.has(`${adapter.localTable}:${remoteRow.uuid}`)) {
-            continue;
-          }
-          await applySharedRemoteRow(db, adapter, remoteRow, maps);
-          pulled += 1;
-          if (adapter.localTable === 'shared_spaces' && typeof remoteRow.uuid === 'string') {
-            remoteSpaceUuids.add(remoteRow.uuid);
-          }
-        }
-        if (page.length < SHARED_PULL_PAGE_SIZE) {
-          break;
-        }
+        rows.push(...page);
+        if (page.length < SHARED_PULL_PAGE_SIZE) break;
         offset += SHARED_PULL_PAGE_SIZE;
+      }
+      return rows;
+    });
+    return { downloaded, deleted: await fetchSharedRemoteTombstones(client) };
+  });
+  const maps = await loadPullFkMaps(db);
+  const tombstonedKeys = new Set(deleted.map((row) => `${row.table_name}:${row.row_key}`));
+  const localDeletes = await db.getAllAsync<{ table_name: string; row_key: string }>(
+    'SELECT table_name, row_key FROM shared_sync_tombstones');
+  for (const row of localDeletes) tombstonedKeys.add(`${row.table_name}:${row.row_key}`);
+  for (const [table, map] of [
+    ['shared_spaces', maps.spaceIdByUuid],
+    ['shared_space_members', maps.memberIdByUuid],
+    ['shared_periods', maps.periodIdByUuid],
+    ['shared_expenses', maps.expenseIdByUuid],
+  ] as const) {
+    for (const uuid of map.keys()) {
+      if (tombstonedKeys.has(`${table}:${uuid}`)) map.delete(uuid);
+    }
+  }
+  const remoteSpaceUuids = new Set<string>();
+  await measureSyncPhase('shared.apply', async () => {
+    const adapterByTable = new Map(SHARED_ADAPTERS.map((adapter) => [adapter.localTable, adapter]));
+    for (let offset = 0; offset < deleted.length; offset += 100) {
+      applySyncBatch(db, (batch) => {
+        for (const tomb of deleted.slice(offset, offset + 100)) {
+          const adapter = adapterByTable.get(tomb.table_name);
+          if (!adapter) continue;
+          batch.runSync(`DELETE FROM ${adapter.localTable} WHERE uuid = ?`, [tomb.row_key]);
+          batch.runSync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [tomb.table_name, tomb.row_key]);
+          if (tomb.deleted_at > sinceValue) tombstones += 1;
+        }
+      });
+    }
+    for (const [index, adapter] of SHARED_ADAPTERS.entries()) {
+      const rows = downloaded[index];
+      for (let offset = 0; offset < rows.length; offset += 100) {
+        applySyncBatch(db, (batch) => {
+          for (const remoteRow of rows.slice(offset, offset + 100)) {
+            // Tombstones also block stale remote copies reinserted by old clients.
+            if (tombstonedKeys.has(`${adapter.localTable}:${remoteRow.uuid}`)) continue;
+            applySharedRemoteRow(batch, adapter, remoteRow, maps);
+            pulled += 1;
+            if (adapter.localTable === 'shared_spaces' && typeof remoteRow.uuid === 'string') {
+              remoteSpaceUuids.add(remoteRow.uuid);
+            }
+          }
+        });
       }
     }
     // A space vanishes from a member's pull when it is deleted by the owner or
     // when that member's own access is revoked: drop the local copy (and its
     // children) and decouple, never delete, the linked personal transactions.
-    expired = await expireRemovedSpaces(db, remoteSpaceUuids);
+    expired = applySyncBatch(db, (batch) => expireRemovedSpaces(batch, remoteSpaceUuids));
     // Merge any duplicate open periods a sync race left behind so every member
     // lists the same single current period (and its expenses).
     await consolidateOpenPeriods(db);

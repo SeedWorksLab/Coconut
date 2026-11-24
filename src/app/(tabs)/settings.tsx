@@ -10,6 +10,8 @@ import { AmountInput } from '../../components/amount-input';
 import { LoadingScreen } from '../../components/loading-screen';
 import { useAppTheme } from '../../theme';
 import { AppDialog } from '../../components/app-dialog';
+import { AccountBubble } from '../../components/account-bubble';
+import { resolveCloudConfig } from '../../config/cloud';
 import {
   getCheckForUpdatesOnStart,
   setCheckForUpdatesOnStart,
@@ -21,6 +23,7 @@ export default function SettingsScreen() {
   const {
     ready,
     settings,
+    syncState,
     currentMonth,
     setMonthlyAllowance,
     setThemeMode,
@@ -66,6 +69,13 @@ export default function SettingsScreen() {
 
   return (
     <KeyboardAwareScrollView contentContainerStyle={styles.container}>
+      {syncState.enabled ? (
+        <AccountBubble
+          username={settings.username}
+          isCustom={resolveCloudConfig(syncState).isCustom}
+          onPress={() => router.push('/sync')}
+        />
+      ) : null}
       <List.Section>
         <List.Subheader>{t('settings.money')}</List.Subheader>
         <List.Item
@@ -124,12 +134,14 @@ export default function SettingsScreen() {
           left={(props) => <List.Icon {...props} icon="database-export-outline" />}
           onPress={() => router.push('/planning/backup')}
         />
-        <List.Item
-          title={t('settings.cloudSync')}
-          description={t('settings.cloudSyncDescription')}
-          left={(props) => <List.Icon {...props} icon="cloud-sync-outline" />}
-          onPress={() => router.push('/sync')}
-        />
+        {!syncState.enabled ? (
+          <List.Item
+            title={t('settings.cloudSync')}
+            description={t('settings.cloudSyncDescription')}
+            left={(props) => <List.Icon {...props} icon="cloud-sync-outline" />}
+            onPress={() => router.push('/sync')}
+          />
+        ) : null}
       </List.Section>
 
       <List.Section>

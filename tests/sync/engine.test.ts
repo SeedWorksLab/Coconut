@@ -2,9 +2,9 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { syncPersonalChanges, syncSharedChanges, syncNow } from '../../src/sync/engine';
 import { pushChanges } from '../../src/sync/push';
 import { pullChanges } from '../../src/sync/pull';
-import { pullSharedChanges } from '../../src/sync/shared';
+import { pullSharedChanges, pushSharedChanges } from '../../src/sync/shared';
 import { reconcileSharedTransactions } from '../../src/database/sharedLinking';
-import { reportSeedWorksUsage } from '../../src/sync/usage-report';
+import { scheduleSeedWorksUsage } from '../../src/sync/usage-report';
 
 jest.mock('../../src/database/syncState', () => ({
   getSyncState: jest.fn().mockResolvedValue({ enabled: true, lastSyncAt: null }),
@@ -26,7 +26,7 @@ jest.mock('../../src/sync/identity', () => ({
   ensureSyncIdentity: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../../src/sync/usage-report', () => ({
-  reportSeedWorksUsage: jest.fn().mockResolvedValue(undefined),
+  scheduleSeedWorksUsage: jest.fn(),
 }));
 jest.mock('../../src/sync/push', () => ({
   pushChanges: jest.fn(),
@@ -52,7 +52,7 @@ beforeEach(() => {
 it('reconciles local shared mirrors before an upload can fail', async () => {
   jest.mocked(pushChanges).mockImplementationOnce(async () => {
     expect(reconcileSharedTransactions).toHaveBeenCalledWith('user-1', db);
-    expect(reportSeedWorksUsage).toHaveBeenCalledWith(db, {});
+    expect(scheduleSeedWorksUsage).not.toHaveBeenCalled();
     throw new Error('Upload failed');
   });
   await expect(syncPersonalChanges(db)).rejects.toThrow('Upload failed');
@@ -81,4 +81,25 @@ it.each(['shared', 'full'] as const)('allows a waiting %s sync to proceed after 
   await expect(waiting).resolves.not.toBeNull();
   expect(pullSharedChanges).toHaveBeenCalled();
   expect(reconcileSharedTransactions).toHaveBeenCalledWith('user-1', db);
+});
+
+it('serializes simultaneous personal/shared/full syncs without deadlocking or suppressing one', async () => {
+  let release!: () => void;
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  jest.mocked(pushChanges).mockImplementationOnce(async () => {
+    entered();
+    await new Promise<void>((resolve) => { release = resolve; });
+    return pushed;
+  });
+  const personal = syncPersonalChanges(db);
+  const shared = syncSharedChanges(db);
+  const full = syncNow(db);
+  await started;
+  expect(pushSharedChanges).not.toHaveBeenCalled();
+  release();
+  const results = await Promise.all([personal, shared, full]);
+  expect(results.every(Boolean)).toBe(true);
+  expect(pushChanges).toHaveBeenCalledTimes(2);
+  expect(pushSharedChanges).toHaveBeenCalledTimes(2);
 });

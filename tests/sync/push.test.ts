@@ -162,6 +162,7 @@ class FakeClient {
 
 class FakeBuilder {
   private filters: Array<[string, unknown]> = [];
+  private inFilters: Array<[string, readonly unknown[]]> = [];
 
   constructor(
     private readonly fakeClient: FakeClient,
@@ -175,6 +176,21 @@ class FakeBuilder {
   eq(column: string, value: unknown): this {
     this.filters.push([column, value]);
     return this;
+  }
+
+  in(column: string, values: readonly unknown[]): this {
+    this.inFilters.push([column, values]);
+    return this;
+  }
+
+  then(
+    onFulfilled?: (value: { data: PostgrestRow[]; error: null }) => unknown,
+    onRejected?: (reason: unknown) => unknown,
+  ): Promise<unknown> {
+    const data = [...this.fakeClient.tables.get(this.tableName)?.values() ?? []].filter((row) =>
+      this.filters.every(([column, value]) => row[column] === value) &&
+      this.inFilters.every(([column, values]) => values.includes(row[column])));
+    return Promise.resolve({ data, error: null }).then(onFulfilled, onRejected);
   }
 
   maybeSingle(): Promise<{ data: PostgrestRow | null }> {
@@ -191,9 +207,13 @@ class FakeBuilder {
   }
 
   upsert(
-    payload: PostgrestRow,
+    payload: PostgrestRow | PostgrestRow[],
     _options: { onConflict: string }
   ): Promise<{ error: Error | null }> {
+    if (Array.isArray(payload)) {
+      return Promise.all(payload.map((row) => this.upsert(row, _options)))
+        .then((results) => ({ error: results.find((result) => result.error)?.error ?? null }));
+    }
     if (this.fakeClient.failTables.has(this.tableName)) {
       return Promise.resolve({ error: new Error(`test failure for ${this.tableName}`) });
     }
@@ -309,6 +329,20 @@ function insertWithSuppressedTriggers(db: DatabaseSync, sql: string): void {
 }
 
 describe('pushChanges full-sync seeding and healing', () => {
+  it('batches settings lookups and does not re-upload unchanged settings', async () => {
+    const raw = freshDb();
+    const client = new FakeClient();
+    await updateSettings({ username: 'alice', language: 'en' }, makeDbApi(raw) as never);
+    await pushChanges(client as never, makeDbApi(raw) as never);
+    const from = jest.spyOn(client, 'from');
+    client.upsertLog.length = 0;
+    const result = await pushChanges(client as never, makeDbApi(raw) as never);
+    expect(from.mock.calls.filter(([table]) => table === 'settings')).toHaveLength(1);
+    expect(client.upsertLog.filter((entry) => entry.table === 'settings')).toHaveLength(0);
+    expect(result.settingsPushed).toBe(0);
+    raw.close();
+  });
+
   it.each([false, true])('uploads saved subscription charges with parent UUIDs (full=%s)', async (full) => {
     const db = freshDb();
     insertMonth(db, '2026-09');

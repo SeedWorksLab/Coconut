@@ -718,6 +718,7 @@ export const hu: Partial<Record<TranslationKey, string>> = {
   'sync.seedworksAuthHint': 'Használd ugyanazt a SeedWorks-fiókot itt és a seedworkslab.de/account.html oldalon. Az első bejelentkezés előtt e-mail-megerősítés szükséges.',
   'sync.saveCustomFirst': 'Bejelentkezés előtt mentsd el az egyéni projektet.',
   'sync.manageAccount': 'Seed-fiók kezelése',
+  'sync.registerOnWebsite': 'Regisztráció a SeedWorks weboldalán',
   'sync.usernameTitle': 'Felhasználónév (nem kötelező)',
   'sync.username': 'Felhasználónév',
   'sync.saveUsername': 'Felhasználónév mentése',

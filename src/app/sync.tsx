@@ -30,7 +30,6 @@ import {
   resetClient,
   signInToSupabase,
   signOutOfSupabase,
-  signUpToSupabase,
 } from '../sync/supabase';
 import { syncNow } from '../sync/engine';
 import { setMemberDisplayNameForUser } from '../database/sharedSpaces';
@@ -170,20 +169,6 @@ export default function SyncScreen() {
       setToast(t('sync.signedIn'));
     } catch {
       setToast(t('sync.signInFailed'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function runSignUp(): Promise<void> {
-    setBusy(true);
-    try {
-      await signUpToSupabase(emailDraft.trim(), passwordDraft);
-      setPasswordDraft('');
-      setSessionUser(await getSupabaseSessionUser());
-      setToast(t('sync.accountCreated'));
-    } catch {
-      setToast(t('sync.signUpFailed'));
     } finally {
       setBusy(false);
     }
@@ -457,15 +442,6 @@ export default function SyncScreen() {
                 >
                   {t('sync.signIn')}
                 </Button>
-                <Button
-                  mode="outlined"
-                  icon="account-plus-outline"
-                  onPress={runSignUp}
-                  disabled={busy || !canAuth}
-                  style={styles.flexButton}
-                >
-                  {t('sync.createAccount')}
-                </Button>
               </View>
               <PaperText variant="bodySmall" style={styles.hint}>
                 {usingCustomProject
@@ -485,7 +461,7 @@ export default function SyncScreen() {
               disabled={busy}
               style={styles.button}
             >
-              {t('sync.manageAccount')}
+              {signedIn ? t('sync.manageAccount') : t('sync.registerOnWebsite')}
             </Button>
           ) : null}
         </Card.Content>

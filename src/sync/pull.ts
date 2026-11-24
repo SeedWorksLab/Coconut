@@ -1,10 +1,11 @@
 import type { SQLiteDatabase, SQLiteBindValue } from 'expo-sqlite';
 
-import { withPullGuard } from '../database/syncMeta';
+import { getMeta, setMeta } from '../database/syncMeta';
+import { applySyncBatch, type SyncApplyDatabase } from '../database/sync-batch';
+import { mapSyncDownloads, measureSyncPhase } from './performance';
 import {
   COMPLETE_ADAPTERS,
   SYNC_SETTINGS_KEYS,
-  type Field,
   type SyncTableAdapter,
 } from './serialize';
 import { getSupabaseUserId, SyncAuthError, type CoconutClient } from './supabase';
@@ -12,6 +13,14 @@ import { isRemoteNewer, toMillis } from './time';
 
 const PULL_PAGE_SIZE = 500;
 const REPAIR_CHUNK_SIZE = 100;
+const APPLY_BATCH_SIZE = 100;
+const NULLABLE_REPAIR_KEY = 'nullable_fk_repair_v1';
+const PENDING_REPAIR_KEY = 'pending_fk_repairs_v1';
+
+interface PendingRepair {
+  table: string;
+  uuid: string;
+}
 
 const PARENT_TABLE_BY_FK_REMOTE_FIELD: Record<string, string> = {
   budget_uuid: 'budgets',
@@ -104,28 +113,28 @@ function toSetSql(
   };
 }
 
-async function findNaturalMatch(
-  db: SQLiteDatabase,
+function findNaturalMatch(
+  db: SyncApplyDatabase,
   adapter: SyncTableAdapter,
   values: Record<string, unknown>
-): Promise<{ id: number; uuid: string; updated_at: string | null } | null> {
+): { id: number; uuid: string; updated_at: string | null } | null {
   const naturalKeys = adapter.naturalKeys ?? [];
   if (naturalKeys.length === 0) {
     return null;
   }
   const where = naturalKeys.map((col) => `${col} = ?`).join(' AND ');
   const params = naturalKeys.map((col) => toBindValue(values[col]));
-  return db.getFirstAsync<{ id: number; uuid: string; updated_at: string | null }>(
+  return db.getFirstSync<{ id: number; uuid: string; updated_at: string | null }>(
     `SELECT id, uuid, updated_at FROM ${adapter.localTable} WHERE ${where} LIMIT 1`,
     params
   );
 }
 
-async function findSharedMirrorByOrigin(
-  db: SQLiteDatabase,
+function findSharedMirrorByOrigin(
+  db: SyncApplyDatabase,
   adapter: SyncTableAdapter,
   values: Record<string, unknown>
-): Promise<{ id: number; uuid: string; updated_at: string | null } | null> {
+): { id: number; uuid: string; updated_at: string | null } | null {
   if (
     adapter.localTable !== 'transactions' ||
     values.origin_type !== 'shared' ||
@@ -133,7 +142,7 @@ async function findSharedMirrorByOrigin(
   ) {
     return null;
   }
-  return db.getFirstAsync<{ id: number; uuid: string; updated_at: string | null }>(
+  return db.getFirstSync<{ id: number; uuid: string; updated_at: string | null }>(
     `SELECT id, uuid, updated_at FROM transactions
       WHERE origin_type = 'shared' AND origin_id = ?
       ORDER BY id ASC LIMIT 1`,
@@ -155,62 +164,15 @@ function captureInsertedParent(maps: FkMaps, adapter: SyncTableAdapter, values: 
   }
 }
 
-async function fetchAndApplyParent(
-  db: SQLiteDatabase,
-  client: CoconutClient,
-  field: Field,
-  parentUuid: string,
-  maps: FkMaps
-): Promise<void> {
-  const parentTable = PARENT_TABLE_BY_FK_REMOTE_FIELD[field.remote];
-  if (!parentTable) {
-    return;
-  }
-  const parentAdapter = COMPLETE_ADAPTERS.find(
-    (adapter) => adapter.localTable === parentTable
-  );
-  if (!parentAdapter) {
-    return;
-  }
-  // The parent may be older than the incremental watermark (or have been written
-  // by a device with a slightly behind clock). Fetch it directly by uuid instead
-  // of leaving the child with a NULL FK that no later pull would ever repair.
-  const { data, error } = await client
-    .from(parentAdapter.remoteTable)
-    .select('*')
-    .eq('uuid', parentUuid)
-    .maybeSingle();
-  if (error) {
-    throw new Error(`Pull lookup failed for ${parentAdapter.remoteTable}: ${error.message}`);
-  }
-  if (data) {
-    await applyRemoteRow(db, parentAdapter, data as Record<string, unknown>, maps, client);
-  }
-}
-
-async function applyRemoteRow(
-  db: SQLiteDatabase,
+function applyRemoteRow(
+  db: SyncApplyDatabase,
   adapter: SyncTableAdapter,
   remote: Record<string, unknown>,
-  maps: FkMaps,
-  client: CoconutClient
-): Promise<void> {
+  maps: FkMaps
+): void {
   const uuid = (remote.uuid as string) ?? '';
   const remoteUpdatedAt = (remote.updated_at as string | null) ?? null;
-  let values: Record<string, unknown> = adapter.fromRemote(remote, pullFkResolver(maps));
-  values.updated_at = remoteUpdatedAt;
-
-  for (const field of adapter.fields) {
-    if (!field.fk) {
-      continue;
-    }
-    const parentUuid = remote[field.remote] as string | null | undefined;
-    if (parentUuid == null || values[field.local] != null) {
-      continue;
-    }
-    await fetchAndApplyParent(db, client, field, parentUuid, maps);
-  }
-  values = adapter.fromRemote(remote, pullFkResolver(maps));
+  const values: Record<string, unknown> = adapter.fromRemote(remote, pullFkResolver(maps));
   values.updated_at = remoteUpdatedAt;
 
   if (hasUnresolvedFk(adapter, remote, values)) {
@@ -222,7 +184,7 @@ async function applyRemoteRow(
     if (!monthKey) {
       return;
     }
-    const local = await db.getFirstAsync<{ updated_at: string | null }>(
+    const local = db.getFirstSync<{ updated_at: string | null }>(
       'SELECT updated_at FROM months WHERE month_key = ?',
       [monthKey]
     );
@@ -232,13 +194,13 @@ async function applyRemoteRow(
     values.uuid = uuid;
     if (local) {
       const { sql, params } = toSetSql(values);
-      await db.runAsync(`UPDATE months SET ${sql} WHERE month_key = ?`, [
+      db.runSync(`UPDATE months SET ${sql} WHERE month_key = ?`, [
         ...params,
         monthKey,
       ]);
     } else {
       const columns = Object.keys(values);
-      await db.runAsync(
+      db.runSync(
         `INSERT INTO months (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`,
         columns.map((col) => toBindValue(values[col]))
       );
@@ -246,15 +208,15 @@ async function applyRemoteRow(
     return;
   }
 
-  const existing = await db.getFirstAsync<{ id: number; uuid: string; updated_at: string | null }>(
+  const existing = db.getFirstSync<{ id: number; uuid: string; updated_at: string | null }>(
     `SELECT id, uuid, updated_at FROM ${adapter.localTable} WHERE uuid = ?`,
     [uuid]
   );
   const sharedMatch = existing
     ? null
-    : await findSharedMirrorByOrigin(db, adapter, values);
+    : findSharedMirrorByOrigin(db, adapter, values);
   const naturalMatch =
-    existing || sharedMatch ? null : await findNaturalMatch(db, adapter, values);
+    existing || sharedMatch ? null : findNaturalMatch(db, adapter, values);
   const target = existing ?? sharedMatch ?? naturalMatch;
 
   if (target) {
@@ -263,7 +225,7 @@ async function applyRemoteRow(
     }
     values.uuid = target.uuid;
     const { sql, params } = toSetSql(values);
-    await db.runAsync(`UPDATE ${adapter.localTable} SET ${sql} WHERE uuid = ?`, [
+    db.runSync(`UPDATE ${adapter.localTable} SET ${sql} WHERE uuid = ?`, [
       ...params,
       toBindValue(values.uuid),
     ]);
@@ -272,7 +234,7 @@ async function applyRemoteRow(
 
   values.uuid = uuid;
   const columns = Object.keys(values);
-  const result = await db.runAsync(
+  const result = db.runSync(
     `INSERT INTO ${adapter.localTable} (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`,
     columns.map((col) => toBindValue(values[col]))
   );
@@ -311,15 +273,17 @@ async function fetchRemoteRows(
   return rows;
 }
 
-async function applyRemoteTombstones(
-  db: SQLiteDatabase,
+interface RemoteTombstone {
+  table_name: string;
+  row_key: string;
+  deleted_at: string;
+}
+
+async function fetchRemoteTombstones(
   client: CoconutClient,
-  since: string
-): Promise<{ applied: number; tombstonedKeys: Set<string> }> {
-  const adapterByTable = new Map(COMPLETE_ADAPTERS.map((a) => [a.localTable, a]));
-  let applied = 0;
+): Promise<RemoteTombstone[]> {
+  const rows: RemoteTombstone[] = [];
   let offset = 0;
-  const tombstonedKeys = new Set<string>();
   for (;;) {
     const { data, error } = await client
       .from('sync_tombstones')
@@ -334,33 +298,13 @@ async function applyRemoteTombstones(
       throw new Error(`Pull of tombstones failed: ${error.message}`);
     }
     const page = data ?? [];
-    for (const tomb of page) {
-      const adapter = adapterByTable.get(tomb.table_name as string);
-      if (!adapter) {
-        continue;
-      }
-      tombstonedKeys.add(`${tomb.table_name}:${tomb.row_key}`);
-      if (adapter.identityColumn === 'month_key') {
-        await db.runAsync('DELETE FROM months WHERE month_key = ?', [tomb.row_key]);
-      } else {
-        await db.runAsync(`DELETE FROM ${adapter.localTable} WHERE uuid = ?`, [
-          tomb.row_key,
-        ]);
-      }
-      await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
-        tomb.table_name,
-        tomb.row_key,
-      ]);
-      if ((tomb.deleted_at as string) > since) {
-        applied += 1;
-      }
-    }
+    rows.push(...page as RemoteTombstone[]);
     if (page.length < PULL_PAGE_SIZE) {
       break;
     }
     offset += PULL_PAGE_SIZE;
   }
-  return { applied, tombstonedKeys };
+  return rows;
 }
 
 export async function pullSettings(
@@ -377,19 +321,23 @@ export async function pullSettings(
   if (error) {
     throw new Error(`Pull of settings failed: ${error.message}`);
   }
+  return applySyncBatch(db, (batch) => applySettings(batch, data ?? []));
+}
+
+function applySettings(db: SyncApplyDatabase, rows: Record<string, unknown>[]): number {
   let applied = 0;
-  for (const row of data ?? []) {
+  for (const row of rows) {
     const key = row.key as string;
     const value = (row.value as string) ?? '';
     const updatedAt = (row.updated_at as string | null) ?? null;
-    const local = await db.getFirstAsync<{ value: string; updated_at: string | null }>(
+    const local = db.getFirstSync<{ value: string; updated_at: string | null }>(
       'SELECT value, updated_at FROM settings WHERE key = ?',
       [key]
     );
     if (local && !isRemoteNewer(local.updated_at, updatedAt)) {
       continue;
     }
-    await db.runAsync(
+    db.runSync(
       `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
        ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
       [key, value, updatedAt]
@@ -399,18 +347,21 @@ export async function pullSettings(
   return applied;
 }
 
-async function repairNullableFks(
+async function fetchRepairRows(
   db: SQLiteDatabase,
   client: CoconutClient,
-  maps: FkMaps
-): Promise<void> {
+  full: boolean,
+): Promise<Record<string, unknown>[][]> {
   // A child pulled before its parent existed locally used to keep NULL forever:
   // the incremental watermark never fetched it again and an equal timestamp is
   // not "newer". Re-check every locally NULL nullable FK against the remote row
   // (the remote is the only place the original uuid still survives) and restore
   // it when the remote copy is at least as new as the local one.
-  for (const adapter of COMPLETE_ADAPTERS) {
-    for (const field of adapter.fields) {
+  const stored = await getMeta(PENDING_REPAIR_KEY, db);
+  const pending = stored ? JSON.parse(stored) as PendingRepair[] : [];
+  return mapSyncDownloads(COMPLETE_ADAPTERS, async (adapter) => {
+    const uuids = new Set(pending.filter((row) => row.table === adapter.localTable).map((row) => row.uuid));
+    for (const field of full ? adapter.fields : []) {
       if (!field.fk || field.requiredFk) {
         continue;
       }
@@ -418,51 +369,81 @@ async function repairNullableFks(
         `SELECT uuid, updated_at FROM ${adapter.localTable}
           WHERE uuid IS NOT NULL AND ${field.local} IS NULL`
       );
-      if (locals.length === 0) {
-        continue;
+      for (const row of locals) uuids.add(row.uuid);
+    }
+    const keys = [...uuids];
+    const rows: Record<string, unknown>[] = [];
+    for (let index = 0; index < keys.length; index += REPAIR_CHUNK_SIZE) {
+      const chunk = keys.slice(index, index + REPAIR_CHUNK_SIZE);
+      const { data, error } = await client
+        .from(adapter.remoteTable)
+        .select('*')
+        .in('uuid', chunk);
+      if (error) {
+        throw new Error(`FK repair lookup failed for ${adapter.remoteTable}: ${error.message}`);
       }
-      const localByUuid = new Map(locals.map((row) => [row.uuid, row]));
-      for (let index = 0; index < locals.length; index += REPAIR_CHUNK_SIZE) {
-        const chunk = locals
-          .slice(index, index + REPAIR_CHUNK_SIZE)
-          .map((row) => row.uuid);
-        const { data, error } = await client
-          .from(adapter.remoteTable)
-          .select('*')
-          .in('uuid', chunk);
-        if (error) {
-          throw new Error(
-            `FK repair lookup failed for ${adapter.remoteTable}: ${error.message}`
-          );
-        }
-        for (const remoteRow of data ?? []) {
-          const remoteValue = remoteRow[field.remote] as string | null;
-          if (remoteValue == null) {
-            continue;
-          }
-          const local = localByUuid.get(remoteRow.uuid as string);
-          if (
-            !local ||
-            toMillis(remoteRow.updated_at as string | null) < toMillis(local.updated_at)
-          ) {
-            continue;
-          }
-          let localId = pullFkResolver(maps)(field.remote, remoteValue);
-          if (localId == null) {
-            await fetchAndApplyParent(db, client, field, remoteValue, maps);
-            localId = pullFkResolver(maps)(field.remote, remoteValue);
-          }
-          if (localId == null) {
-            continue;
-          }
-          await db.runAsync(
-            `UPDATE ${adapter.localTable} SET ${field.local} = ? WHERE uuid = ?`,
-            [localId, remoteRow.uuid as string]
-          );
-        }
+      rows.push(...data ?? []);
+    }
+    return rows;
+  });
+}
+
+function repairNullableFks(
+  db: SyncApplyDatabase,
+  adapter: SyncTableAdapter,
+  rows: Record<string, unknown>[],
+  maps: FkMaps,
+): void {
+  for (const remoteRow of rows) {
+    for (const field of adapter.fields) {
+      if (!field.fk || field.requiredFk) continue;
+      const remoteValue = remoteRow[field.remote] as string | null;
+      if (remoteValue == null) continue;
+      const local = db.getFirstSync<{ updated_at: string | null }>(
+        `SELECT updated_at FROM ${adapter.localTable} WHERE uuid = ? AND ${field.local} IS NULL`,
+        [toBindValue(remoteRow.uuid)],
+      );
+      if (!local || toMillis(remoteRow.updated_at as string | null) < toMillis(local.updated_at)) continue;
+      const localId = pullFkResolver(maps)(field.remote, remoteValue);
+      if (localId == null) continue;
+      db.runSync(
+        `UPDATE ${adapter.localTable} SET ${field.local} = ? WHERE uuid = ?`,
+        [localId, remoteRow.uuid as string]
+      );
+    }
+  }
+}
+
+async function fetchMissingParents(
+  client: CoconutClient,
+  downloaded: Record<string, unknown>[][],
+  repairs: Record<string, unknown>[][],
+  maps: FkMaps,
+): Promise<void> {
+  const missing = new Map<string, Set<string>>();
+  for (const [index, adapter] of COMPLETE_ADAPTERS.entries()) {
+    for (const row of [...downloaded[index], ...repairs[index]]) {
+      for (const field of adapter.fields) {
+        const uuid = row[field.remote];
+        const table = PARENT_TABLE_BY_FK_REMOTE_FIELD[field.remote];
+        if (!table || typeof uuid !== 'string' || pullFkResolver(maps)(field.remote, uuid) != null) continue;
+        const keys = missing.get(table) ?? new Set<string>();
+        keys.add(uuid);
+        missing.set(table, keys);
       }
     }
   }
+  await mapSyncDownloads([...missing], async ([table, keys]) => {
+    const index = COMPLETE_ADAPTERS.findIndex((adapter) => adapter.localTable === table);
+    const existing = new Set(downloaded[index].map((row) => row.uuid));
+    const needed = [...keys].filter((uuid) => !existing.has(uuid));
+    for (let offset = 0; offset < needed.length; offset += REPAIR_CHUNK_SIZE) {
+      const { data, error } = await client.from(COMPLETE_ADAPTERS[index].remoteTable)
+        .select('*').in('uuid', needed.slice(offset, offset + REPAIR_CHUNK_SIZE));
+      if (error) throw new Error(`Pull lookup failed for ${table}: ${error.message}`);
+      downloaded[index].push(...data ?? []);
+    }
+  });
 }
 
 export interface PullResult {
@@ -481,32 +462,83 @@ export async function pullChanges(
     throw new SyncAuthError('You must be signed in to sync.');
   }
 
-  const maps = await loadFkMaps(db);
   let pulled = 0;
   let tombstones = 0;
   let settingsPulled = 0;
 
-  await withPullGuard(db, async () => {
-    const tombstoneResult = await applyRemoteTombstones(db, client, since);
-    tombstones = tombstoneResult.applied;
-
-    for (const adapter of COMPLETE_ADAPTERS) {
-      const remoteRows = await fetchRemoteRows(client, adapter.remoteTable, since);
-      for (const remoteRow of remoteRows) {
-        const rowKey = adapter.identityColumn === 'month_key'
-          ? remoteRow.month_key
-          : remoteRow.uuid;
-        if (tombstoneResult.tombstonedKeys.has(`${adapter.localTable}:${rowKey}`)) {
-          continue;
+  const needsRepair = since === '1970-01-01T00:00:00.000Z' || !await getMeta(NULLABLE_REPAIR_KEY, db);
+  const { downloaded, deleted, settings, repairs } = await measureSyncPhase('personal.download', async () => {
+    const downloaded = await mapSyncDownloads(COMPLETE_ADAPTERS, (adapter) =>
+      fetchRemoteRows(client, adapter.remoteTable, since));
+    const deleted = await fetchRemoteTombstones(client);
+    const { data: settings, error } = await client.from('settings')
+      .select('key, value, updated_at').in('key', SYNC_SETTINGS_KEYS).gt('updated_at', since);
+    if (error) throw new Error(`Pull of settings failed: ${error.message}`);
+    const repairs = await fetchRepairRows(db, client, needsRepair);
+    await fetchMissingParents(client, downloaded, repairs, await loadFkMaps(db));
+    return { downloaded, deleted, settings: settings ?? [], repairs };
+  });
+  const maps = await loadFkMaps(db);
+  const tombstonedKeys = new Set(deleted.map((row) => `${row.table_name}:${row.row_key}`));
+  const localDeletes = await db.getAllAsync<{ table_name: string; row_key: string }>(
+    'SELECT table_name, row_key FROM sync_tombstones');
+  for (const row of localDeletes) tombstonedKeys.add(`${row.table_name}:${row.row_key}`);
+  for (const [table, map] of [
+    ['budgets', maps.budgetIdByUuid],
+    ['fixed_expenses', maps.fixedExpenseIdByUuid],
+    ['yearly_subscriptions', maps.subscriptionIdByUuid],
+  ] as const) {
+    for (const uuid of map.keys()) {
+      if (tombstonedKeys.has(`${table}:${uuid}`)) map.delete(uuid);
+    }
+  }
+  const pending: PendingRepair[] = [];
+  await measureSyncPhase('personal.apply', async () => {
+    const adapterByTable = new Map(COMPLETE_ADAPTERS.map((adapter) => [adapter.localTable, adapter]));
+    for (let offset = 0; offset < deleted.length; offset += APPLY_BATCH_SIZE) {
+      applySyncBatch(db, (batch) => {
+        for (const tomb of deleted.slice(offset, offset + APPLY_BATCH_SIZE)) {
+          const adapter = adapterByTable.get(tomb.table_name);
+          if (!adapter) continue;
+          batch.runSync(`DELETE FROM ${adapter.localTable} WHERE ${adapter.identityColumn} = ?`, [tomb.row_key]);
+          batch.runSync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [tomb.table_name, tomb.row_key]);
+          if (tomb.deleted_at > since) tombstones += 1;
         }
-        await applyRemoteRow(db, adapter, remoteRow, maps, client);
-        pulled += 1;
+      });
+    }
+    for (const [index, adapter] of COMPLETE_ADAPTERS.entries()) {
+      const byUuid = new Map<string, Record<string, unknown>>();
+      for (const row of [...downloaded[index], ...repairs[index]]) {
+        const key = String(row.uuid);
+        const previous = byUuid.get(key);
+        if (!previous || toMillis(row.updated_at as string) >= toMillis(previous.updated_at as string)) {
+          byUuid.set(key, row);
+        }
+      }
+      const remoteRows = [...byUuid.values()];
+      for (let offset = 0; offset < remoteRows.length; offset += APPLY_BATCH_SIZE) {
+        applySyncBatch(db, (batch) => {
+          for (const remoteRow of remoteRows.slice(offset, offset + APPLY_BATCH_SIZE)) {
+            const rowKey = adapter.identityColumn === 'month_key' ? remoteRow.month_key : remoteRow.uuid;
+            if (tombstonedKeys.has(`${adapter.localTable}:${rowKey}`)) continue;
+            applyRemoteRow(batch, adapter, remoteRow, maps);
+            if (adapter.fields.some((field) => field.fk && remoteRow[field.remote] != null &&
+              pullFkResolver(maps)(field.remote, remoteRow[field.remote] as string) == null)) {
+              pending.push({ table: adapter.localTable, uuid: remoteRow.uuid as string });
+            }
+            pulled += 1;
+          }
+        });
+      }
+      const repairRows = repairs[index].filter((row) => !tombstonedKeys.has(`${adapter.localTable}:${row.uuid}`));
+      for (let offset = 0; offset < repairRows.length; offset += APPLY_BATCH_SIZE) {
+        applySyncBatch(db, (batch) =>
+          repairNullableFks(batch, adapter, repairRows.slice(offset, offset + APPLY_BATCH_SIZE), maps));
       }
     }
-
-    settingsPulled = await pullSettings(db, client, since);
-    await repairNullableFks(db, client, maps);
+    settingsPulled = applySyncBatch(db, (batch) => applySettings(batch, settings));
   });
-
+  await setMeta(PENDING_REPAIR_KEY, JSON.stringify(pending), db);
+  if (needsRepair) await setMeta(NULLABLE_REPAIR_KEY, '1', db);
   return { pulled, tombstones, settingsPulled };
 }

@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import dayjs, { type Dayjs } from 'dayjs';
 import { DEFAULT_LANGUAGE, type Language } from '../i18n/types';
 import { HOSTED_WEB } from '../config/hosted-web';
+import { createSyncScheduler, type SyncScheduler } from '../sync/scheduler';
 import React, {
   createContext,
   useCallback,
@@ -396,46 +397,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setReserveHistory(await getReserveTransfers(60, db));
   }, []);
 
+  const backgroundSync = useRef<SyncScheduler | null>(null);
+  const synchronize = useCallback(async () => {
+    let changed = false;
+    try {
+      changed = Boolean(await syncPersonalChanges()) || changed;
+    } catch {
+      // Preserve pending edits and attempt shared sync independently.
+    }
+    try {
+      changed = Boolean(await syncSharedChanges()) || changed;
+    } catch {
+      // The sync state records the failure.
+    }
+    if (changed) await loadLocal();
+  }, [loadLocal]);
+
+  useEffect(() => {
+    const scheduler = createSyncScheduler(synchronize);
+    backgroundSync.current = scheduler;
+    return () => {
+      scheduler.dispose();
+      backgroundSync.current = null;
+    };
+  }, [synchronize]);
+
   const refresh = useCallback(async () => {
-    // Re-read the personal dataset, then catch up shared groups and the personal
-    // tables independently, without the heavy whole-database resync (that stays
-    // available in Settings for emergencies). Once either sync lands, read the
-    // personal dataset again so new rows and re-derived mirrors appear.
     await loadLocal();
     if (HOSTED_WEB && initialHostedLoad.current) {
       initialHostedLoad.current = false;
       return;
     }
-    const synced = (async () => {
-      let changed = false;
-      if (HOSTED_WEB) {
-        try {
-          changed = Boolean(await syncPersonalChanges()) || changed;
-        } catch {
-          // Preserve pending edits and attempt shared sync independently.
-        }
-        try {
-          changed = Boolean(await syncSharedChanges()) || changed;
-        } catch {
-          // The sync state records the failure.
-        }
-        return changed;
-      }
-      try {
-        changed = Boolean(await syncSharedChanges()) || changed;
-      } catch {
-        // The sync state records the failure; still attempt personal sync.
-      }
-      try {
-        changed = Boolean(await syncPersonalChanges()) || changed;
-      } catch {
-        // The sync state records the failure.
-      }
-      return changed;
-    })();
-    void synced
-      .then((changed) => (changed ? loadLocal() : undefined))
-      .catch(() => undefined);
+    backgroundSync.current?.request();
   }, [loadLocal]);
 
   // Pull-to-refresh entry point for the shared tab: sync the shared tables

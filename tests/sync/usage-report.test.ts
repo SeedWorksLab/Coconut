@@ -1,9 +1,14 @@
-import { reportSeedWorksUsage } from '../../src/sync/usage-report';
+import { reportSeedWorksUsage, scheduleSeedWorksUsage } from '../../src/sync/usage-report';
 import { getSyncState } from '../../src/database/syncState';
 import { SEEDWORKS_CLOUD } from '../../src/config/cloud';
+import { getMeta, setMeta } from '../../src/database/syncMeta';
 
 jest.mock('../../src/database/syncState', () => ({
   getSyncState: jest.fn(),
+}));
+jest.mock('../../src/database/syncMeta', () => ({
+  getMeta: jest.fn().mockResolvedValue(null),
+  setMeta: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockedGetSyncState = jest.mocked(getSyncState);
@@ -19,6 +24,7 @@ describe('reportSeedWorksUsage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(getMeta).mockResolvedValue(null);
     mockedGetSyncState.mockResolvedValue({
       supabaseUrl: null,
       apiKey: null,
@@ -55,5 +61,35 @@ describe('reportSeedWorksUsage', () => {
 
     expect(rpc).not.toHaveBeenCalled();
     expect(SEEDWORKS_CLOUD.supabaseUrl).not.toBe('https://custom.supabase.co');
+  });
+
+  it('skips both scanning and reporting until the daily report is due', async () => {
+    jest.mocked(getMeta).mockResolvedValue(String(Date.now()));
+    await reportSeedWorksUsage(db, client as never);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(setMeta).not.toHaveBeenCalled();
+  });
+
+  it('coalesces reports outside the sync critical path', async () => {
+    jest.useFakeTimers();
+    try {
+      scheduleSeedWorksUsage(db, client as never);
+      scheduleSeedWorksUsage(db, client as never);
+      expect(rpc).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(rpc).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not scan or report with cloud sync disabled', async () => {
+    mockedGetSyncState.mockResolvedValue({
+      supabaseUrl: null, apiKey: null, enabled: false,
+      lastSyncAt: null, lastSyncStatus: null, lastSyncError: null,
+    });
+    await reportSeedWorksUsage(db, client as never);
+    expect(getMeta).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { COMPLETE_ADAPTERS, SYNC_SETTINGS_KEYS, type SyncTableAdapter } from './serialize';
 import { isRemoteNewer, nowIso } from './time';
 import { getSupabaseUserId, SyncAuthError, type CoconutClient } from './supabase';
+import { acknowledgeSyncRow } from '../database/sync-outbox';
+import { getMeta, setMeta } from '../database/syncMeta';
 
 interface OutboxEntry {
   table_name: string;
@@ -88,13 +90,6 @@ async function listTombstones(db: SQLiteDatabase): Promise<TombstoneEntry[]> {
   return db.getAllAsync<TombstoneEntry>(
     'SELECT table_name, row_key, deleted_at FROM sync_tombstones ORDER BY id ASC'
   );
-}
-
-async function pruneOutbox(db: SQLiteDatabase, table: string, rowKey: string): Promise<void> {
-  await db.runAsync('DELETE FROM sync_outbox WHERE table_name = ? AND row_key = ?', [
-    table,
-    rowKey,
-  ]);
 }
 
 async function readLocalRow(
@@ -242,7 +237,7 @@ async function pushRow(
 ): Promise<boolean> {
   const localRow = await readLocalRow(db, adapter, entry.row_key);
   if (!localRow) {
-    await pruneOutbox(db, entry.table_name, entry.row_key);
+    await acknowledgeSyncRow(db, adapter.localTable, adapter.identityColumn, entry.row_key, null);
     return false;
   }
 
@@ -259,7 +254,7 @@ async function pushRow(
       throw new Error(`Tombstone lookup failed for ${adapter.localTable}: ${error.message}`);
     }
     if (tombstone) {
-      await pruneOutbox(db, entry.table_name, entry.row_key);
+      await acknowledgeSyncRow(db, adapter.localTable, adapter.identityColumn, entry.row_key, localRow);
       return false;
     }
   }
@@ -270,7 +265,7 @@ async function pushRow(
   // unresolved FK on), so pushing them back would overwrite a good remote copy
   // with the lossy local one on every full sync.
   if (remoteUpdatedAt && !isRemoteNewer(remoteUpdatedAt, localUpdatedAt)) {
-    await pruneOutbox(db, entry.table_name, entry.row_key);
+    await acknowledgeSyncRow(db, adapter.localTable, adapter.identityColumn, entry.row_key, localRow);
     return false;
   }
 
@@ -303,7 +298,7 @@ async function pushRow(
   if (error) {
     throw new Error(`Push failed for ${adapter.remoteTable}: ${error.message}`);
   }
-  await pruneOutbox(db, entry.table_name, entry.row_key);
+  await acknowledgeSyncRow(db, adapter.localTable, adapter.identityColumn, entry.row_key, localRow);
   return true;
 }
 
@@ -384,42 +379,26 @@ export async function pushSettings(
   userId: string,
   keys: readonly string[] = SYNC_SETTINGS_KEYS
 ): Promise<number> {
-  let pushed = 0;
-  for (const key of keys) {
-    const local = await db.getFirstAsync<{ value: string; updated_at: string | null }>(
-      'SELECT value, updated_at FROM settings WHERE key = ?',
-      [key]
-    );
-    if (!local) {
-      continue;
-    }
-    const { data, error: fetchError } = await client
-      .from('settings')
-      .select('updated_at')
-      .eq('key', key)
-      .maybeSingle();
-    if (fetchError) {
-      throw new Error(`Settings push failed for ${key}: ${fetchError.message}`);
-    }
+  if (keys.length === 0) return 0;
+  const locals = await db.getAllAsync<{ key: string; value: string; updated_at: string | null }>(
+    `SELECT key, value, updated_at FROM settings WHERE key IN (${keys.map(() => '?').join(', ')})`,
+    [...keys],
+  );
+  if (locals.length === 0) return 0;
+  const { data, error: fetchError } = await client.from('settings')
+    .select('key, updated_at').in('key', keys);
+  if (fetchError) throw new Error(`Settings push failed: ${fetchError.message}`);
+  const remote = new Map((data ?? []).map((row) => [row.key as string, row.updated_at as string | null]));
+  const payload: Record<string, unknown>[] = [];
+  for (const local of locals) {
     const localUpdatedAt = local.updated_at ?? new Date().toISOString();
-    if (data && isRemoteNewer(localUpdatedAt, data.updated_at as string | null)) {
-      continue;
-    }
-    const { error: upsertError } = await client.from('settings').upsert(
-      {
-        user_id: userId,
-        key,
-        value: local.value,
-        updated_at: localUpdatedAt,
-      },
-      { onConflict: 'user_id,key' }
-    );
-    if (upsertError) {
-      throw new Error(`Settings push failed for ${key}: ${upsertError.message}`);
-    }
-    pushed += 1;
+    if (remote.has(local.key) && !isRemoteNewer(remote.get(local.key), localUpdatedAt)) continue;
+    payload.push({ user_id: userId, key: local.key, value: local.value, updated_at: localUpdatedAt });
   }
-  return pushed;
+  if (payload.length === 0) return 0;
+  const { error } = await client.from('settings').upsert(payload, { onConflict: 'user_id,key' });
+  if (error) throw new Error(`Settings push failed: ${error.message}`);
+  return payload.length;
 }
 
 export async function pushChanges(
@@ -432,7 +411,10 @@ export async function pushChanges(
     throw new SyncAuthError('You must be signed in to sync.');
   }
 
-  await backfillSyncFields(db);
+  if (full || !await getMeta('personal_fields_backfilled_v1', db)) {
+    await backfillSyncFields(db);
+    await setMeta('personal_fields_backfilled_v1', '1', db);
+  }
   const maps = await loadFkMaps(db);
   const entriesByTable = await buildEntries(db, full);
   const adapterByTable = new Map(COMPLETE_ADAPTERS.map((a) => [a.localTable, a]));

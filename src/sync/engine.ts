@@ -8,7 +8,8 @@ import { pushChanges, pushSettings, type PushResult } from './push';
 import { pullChanges, pullSettings, type PullResult } from './pull';
 import { pushSharedChanges, pullSharedChanges, type SharedPushResult, type SharedPullResult } from './shared';
 import { getSupabaseSessionUser, getClient, SyncAuthError } from './supabase';
-import { reportSeedWorksUsage } from './usage-report';
+import { scheduleSeedWorksUsage } from './usage-report';
+import { measureSyncPhase } from './performance';
 import { EPOCH, nowIso, pullSince } from './time';
 import { ensureSyncIdentity } from './identity';
 
@@ -35,6 +36,13 @@ export interface PersonalQuickSyncResult {
 let syncInProgress: Promise<SyncOutcome | null> | null = null;
 let sharedSyncInProgress: Promise<SharedQuickSyncResult | null> | null = null;
 let personalSyncInProgress: Promise<PersonalQuickSyncResult | null> | null = null;
+let syncQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueSync<T>(phase: string, task: () => Promise<T>): Promise<T> {
+  const pending = syncQueue.then(() => measureSyncPhase(phase, task));
+  syncQueue = pending.catch(() => undefined);
+  return pending;
+}
 
 export async function isSyncRunning(): Promise<boolean> {
   return syncInProgress !== null;
@@ -57,15 +65,7 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
   if (sharedSyncInProgress) {
     return sharedSyncInProgress;
   }
-  if (await isSyncRunning()) {
-    return null;
-  }
-  if (personalSyncInProgress) {
-    // Wait for the database work to finish, but let shared sync recover even
-    // when the preceding personal upload failed.
-    await personalSyncInProgress.catch(() => undefined);
-  }
-  sharedSyncInProgress = (async () => {
+  sharedSyncInProgress = enqueueSync('shared.total', async () => {
     const database = db ?? (await getDatabase());
     const state = await getSyncState(database);
     if (!state.enabled) {
@@ -83,8 +83,8 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
       const startedAt = nowIso();
       await updateSyncState({ lastSyncStatus: 'syncing' }, database);
       const client = await getClient();
-      await reportSeedWorksUsage(database, client).catch(() => undefined);
-      const pushed = await pushSharedChanges(client, database, user.id, { changesOnly: true });
+      const pushed = await measureSyncPhase('shared.push', () =>
+        pushSharedChanges(client, database, user.id, { changesOnly: true }));
       const since = await getMeta(SHARED_LAST_SYNC_KEY, database);
       const pulled = await pullSharedChanges(
         client,
@@ -98,6 +98,7 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
       await pullSettings(database, client, EPOCH, ['username', 'language']);
       await setMeta(SHARED_LAST_SYNC_KEY, startedAt, database);
       await updateSyncState({ lastSyncStatus: 'success', lastSyncError: null }, database);
+      scheduleSeedWorksUsage(database, client);
       return { pushed, pulled };
     } catch (error) {
       if (error instanceof SyncAuthError) {
@@ -107,7 +108,7 @@ export async function syncSharedChanges(db?: SQLiteDatabase): Promise<SharedQuic
       await updateSyncState({ lastSyncStatus: 'error', lastSyncError: message }, database);
       throw new SyncError(message);
     }
-  })();
+  });
   try {
     return await sharedSyncInProgress;
   } finally {
@@ -127,13 +128,7 @@ export async function syncPersonalChanges(
   if (personalSyncInProgress) {
     return personalSyncInProgress;
   }
-  if (await isSyncRunning()) {
-    return null;
-  }
-  if (sharedSyncInProgress) {
-    await sharedSyncInProgress.catch(() => undefined);
-  }
-  personalSyncInProgress = (async () => {
+  personalSyncInProgress = enqueueSync('personal.total', async () => {
     const database = db ?? (await getDatabase());
     const state = await getSyncState(database);
     if (!state.enabled) {
@@ -148,9 +143,8 @@ export async function syncPersonalChanges(
       await ensureSyncIdentity(database, state, user.id);
       await updateSyncState({ lastSyncStatus: 'syncing' }, database);
       const client = await getClient();
-      await reportSeedWorksUsage(database, client).catch(() => undefined);
       await reconcileSharedTransactions(user.id, database);
-      const pushed = await pushChanges(client, database, false);
+      const pushed = await measureSyncPhase('personal.push', () => pushChanges(client, database, false));
       const pulled = await pullChanges(
         client,
         database,
@@ -165,6 +159,7 @@ export async function syncPersonalChanges(
         },
         database
       );
+      scheduleSeedWorksUsage(database, client);
       return { pushed, pulled };
     } catch (error) {
       if (error instanceof SyncAuthError) {
@@ -177,7 +172,7 @@ export async function syncPersonalChanges(
       );
       throw new SyncError(message);
     }
-  })();
+  });
   try {
     return await personalSyncInProgress;
   } finally {
@@ -189,13 +184,7 @@ export async function syncNow(db?: SQLiteDatabase): Promise<SyncOutcome | null> 
   if (syncInProgress) {
     return syncInProgress;
   }
-  if (sharedSyncInProgress) {
-    await sharedSyncInProgress.catch(() => undefined);
-  }
-  if (personalSyncInProgress) {
-    await personalSyncInProgress.catch(() => undefined);
-  }
-  syncInProgress = (async () => {
+  syncInProgress = enqueueSync('full.total', async () => {
     const database = db ?? (await getDatabase());
     const state = await getSyncState(database);
     if (!state.enabled) {
@@ -212,7 +201,6 @@ export async function syncNow(db?: SQLiteDatabase): Promise<SyncOutcome | null> 
       const startedAt = nowIso();
       await updateSyncState({ lastSyncStatus: 'syncing' }, database);
       const client = await getClient();
-      await reportSeedWorksUsage(database, client).catch(() => undefined);
       // Always re-sync the whole local database so rows that existed before
       // change-capture triggers were installed still get uploaded.
       const sharedPushed = await pushSharedChanges(client, database, user.id);
@@ -239,6 +227,7 @@ export async function syncNow(db?: SQLiteDatabase): Promise<SyncOutcome | null> 
         },
         database
       );
+      scheduleSeedWorksUsage(database, client);
       return { pushed: pushResult, pulled: pullResult, sharedPushed, sharedPulled };
     } catch (error) {
       if (error instanceof SyncAuthError) {
@@ -248,7 +237,7 @@ export async function syncNow(db?: SQLiteDatabase): Promise<SyncOutcome | null> 
       await updateSyncState({ lastSyncStatus: 'error', lastSyncError: message }, database);
       throw new SyncError(message);
     }
-  })();
+  });
   try {
     const outcome = await syncInProgress;
     return outcome;

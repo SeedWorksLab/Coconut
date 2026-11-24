@@ -10,7 +10,8 @@ import { pullSharedChanges } from './shared';
 import { getClient } from './supabase';
 import { EPOCH, nowIso } from './time';
 import { SHARED_LAST_SYNC_KEY, syncPersonalChanges, syncSharedChanges } from './engine';
-import { reportSeedWorksUsage } from './usage-report';
+import { scheduleSeedWorksUsage } from './usage-report';
+import { measureSyncPhase } from './performance';
 
 const BOOTSTRAP_KEY = 'hosted_web_initial_pull_complete';
 
@@ -40,8 +41,8 @@ export async function openHostedAccountCache(user: User, online: boolean): Promi
 
   const client = await getClient();
   const startedAt = nowIso();
-  await pullSharedChanges(client, db);
-  await pullChanges(client, db, EPOCH);
+  await measureSyncPhase('bootstrap.shared', () => pullSharedChanges(client, db));
+  await measureSyncPhase('bootstrap.personal', () => pullChanges(client, db, EPOCH));
   await reconcileSharedTransactions(user.id, db);
   await setMeta(SHARED_LAST_SYNC_KEY, startedAt, db);
   await updateSyncState({
@@ -51,5 +52,5 @@ export async function openHostedAccountCache(user: User, online: boolean): Promi
     lastSyncError: null,
   }, db);
   await setMeta(BOOTSTRAP_KEY, '1', db);
-  await reportSeedWorksUsage(db, client).catch(() => undefined);
+  scheduleSeedWorksUsage(db, client);
 }
